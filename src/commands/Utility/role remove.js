@@ -4,7 +4,7 @@ import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('roleremove')
+        .setName('role remove')
         .setDescription('Take away a role from a server member')
         .setDMPermission(false)
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
