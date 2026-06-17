@@ -96,23 +96,46 @@ export default {
                 });
 
                 collector.on('end', async () => {
-                    // Disable the button when time expires so nobody can click anymore
+                    // Disable button instantly
                     const disabledButton = ButtonBuilder.from(enterButton).setDisabled(true).setLabel('Giveaway Ended');
                     const disabledRow = new ActionRowBuilder().addComponents(disabledButton);
                     
+                    // Convert Set entries to an Array to pick a random index
+                    const entrantsArray = Array.from(entrants);
+                    let winnerText = "No entries recorded.";
+                    let finalWinnerMention = null;
+
+                    if (entrantsArray.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * entrantsArray.length);
+                        finalWinnerMention = `<@${entrantsArray[randomIndex]}>`;
+                        winnerText = finalWinnerMention;
+                    }
+
                     const endedEmbed = createEmbed()
                         .setColor('#FF0000')
                         .setTitle(`Giveaway ended on **${prize}**`)
                         .setDescription(`Entries are closed!`)
                         .addFields(
                             { name: '🎁 Prize', value: `**${prize}**`, inline: false },
-                            { name: '⏳ Status', value: 'Ended', inline: true },
+                            { name: '🏆 Winner', value: winnerText, inline: true },
                             { name: '👑 Hosted By', value: `${host}`, inline: true }
                         )
-                        .setFooter({ text: 'Time has run out!' })
+                        .setFooter({ text: 'This giveaway has concluded.' })
                         .setTimestamp();
 
+                    // Update the original message card
                     await giveawayMessage.edit({ embeds: [endedEmbed], components: [disabledRow] }).catch(() => null);
+
+                    // If we have a winner, send the mandatory congratulations message in the channel
+                    if (finalWinnerMention) {
+                        await targetChannel.send({
+                            content: `${finalWinnerMention} you have won **${prize}** congratulations 🎊`
+                        });
+                    } else {
+                        await targetChannel.send({
+                            content: `⚠️ The giveaway for **${prize}** ended, but nobody entered!`
+                        });
+                    }
                 });
             }
 
