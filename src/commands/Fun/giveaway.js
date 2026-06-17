@@ -18,7 +18,6 @@ export default {
                         .setDescription('What is the prize?')
                         .setRequired(true)
                 )
-                // Changed to an integer option so we can calculate a real live countdown timestamp
                 .addIntegerOption(option =>
                     option.setName('duration_minutes')
                         .setDescription('How many minutes should the giveaway last?')
@@ -46,11 +45,9 @@ export default {
                 const targetChannel = interaction.options.getChannel('channel');
                 const host = interaction.user;
 
-                // Calculate future live countdown timestamp (seconds)
                 const endTimestamp = Math.floor((Date.now() + durationMinutes * 60 * 1000) / 1000);
-                const discordLiveTime = `<t:${endTimestamp}:R>`; // Live ticking countdown string
+                const discordLiveTime = `<t:${endTimestamp}:R>`;
 
-                // Build your updated embed style matching your new text specs
                 const giveawayEmbed = createEmbed()
                     .setColor('#00FF7F')
                     .setTitle(`Giveaway started on **${prize}**`)
@@ -63,19 +60,59 @@ export default {
                     .setFooter({ text: 'Make sure to enter before time runs out!' })
                     .setTimestamp();
 
-                // Create the blue button to replace reactions
                 const enterButton = new ButtonBuilder()
                     .setCustomId('enter_giveaway')
                     .setLabel('🎉 Enter')
-                    .setStyle(ButtonStyle.Primary); // Blue button style
+                    .setStyle(ButtonStyle.Primary);
 
                 const row = new ActionRowBuilder().addComponents(enterButton);
 
-                // Send the giveaway message with the embed and button row
-                await targetChannel.send({ embeds: [giveawayEmbed], components: [row] });
+                const giveawayMessage = await targetChannel.send({ embeds: [giveawayEmbed], components: [row] });
 
                 await interaction.editReply({
                     content: `✅ Successfully started the live ticking giveaway for **${prize}** in ${targetChannel}!`
+                });
+
+                // --- LIVE BUTTON HANDLING SYSTEM ---
+                const entrants = new Set();
+                const collector = giveawayMessage.createMessageComponentCollector({
+                    filter: i => i.customId === 'enter_giveaway',
+                    time: durationMinutes * 60 * 1000 
+                });
+
+                collector.on('collect', async btnInteraction => {
+                    if (entrants.has(btnInteraction.user.id)) {
+                        return await btnInteraction.reply({
+                            content: '⚠️ You have already entered this giveaway!',
+                            ephemeral: true
+                        });
+                    }
+
+                    entrants.add(btnInteraction.user.id);
+                    await btnInteraction.reply({
+                        content: '🎉 You have successfully entered the giveaway! Good luck!',
+                        ephemeral: true
+                    });
+                });
+
+                collector.on('end', async () => {
+                    // Disable the button when time expires so nobody can click anymore
+                    const disabledButton = ButtonBuilder.from(enterButton).setDisabled(true).setLabel('Giveaway Ended');
+                    const disabledRow = new ActionRowBuilder().addComponents(disabledButton);
+                    
+                    const endedEmbed = createEmbed()
+                        .setColor('#FF0000')
+                        .setTitle(`Giveaway ended on **${prize}**`)
+                        .setDescription(`Entries are closed!`)
+                        .addFields(
+                            { name: '🎁 Prize', value: `**${prize}**`, inline: false },
+                            { name: '⏳ Status', value: 'Ended', inline: true },
+                            { name: '👑 Hosted By', value: `${host}`, inline: true }
+                        )
+                        .setFooter({ text: 'Time has run out!' })
+                        .setTimestamp();
+
+                    await giveawayMessage.edit({ embeds: [endedEmbed], components: [disabledRow] }).catch(() => null);
                 });
             }
 
