@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
@@ -8,19 +8,20 @@ export default {
         .setName('giveaway')
         .setDescription('Manage server giveaways')
         .setDMPermission(false)
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages) // Requires Manage Messages permission
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('setup')
                 .setDescription('Set up a new giveaway message')
                 .addStringOption(option =>
                     option.setName('prize')
-                        .setDescription('What is the prize? (e.g., VIP Rank, Nitro)')
+                        .setDescription('What is the prize?')
                         .setRequired(true)
                 )
-                .addStringOption(option =>
-                    option.setName('duration')
-                        .setDescription('How long will it last? (e.g., 24 Hours, 3 Days)')
+                // Changed to an integer option so we can calculate a real live countdown timestamp
+                .addIntegerOption(option =>
+                    option.setName('duration_minutes')
+                        .setDescription('How many minutes should the giveaway last?')
                         .setRequired(true)
                 )
                 .addChannelOption(option =>
@@ -30,7 +31,7 @@ export default {
                         .setRequired(true)
                 )
         ),
-    category: "Fun", // Updated to match your folder
+    category: "Fun",
 
     async execute(interaction, config, client) {
         try {
@@ -41,32 +42,40 @@ export default {
 
             if (subcommand === 'setup') {
                 const prize = interaction.options.getString('prize');
-                const duration = interaction.options.getString('duration');
+                const durationMinutes = interaction.options.getInteger('duration_minutes');
                 const targetChannel = interaction.options.getChannel('channel');
                 const host = interaction.user;
 
-                // Build a clean, styled giveaway embed layout
+                // Calculate future live countdown timestamp (seconds)
+                const endTimestamp = Math.floor((Date.now() + durationMinutes * 60 * 1000) / 1000);
+                const discordLiveTime = `<t:${endTimestamp}:R>`; // Live ticking countdown string
+
+                // Build your updated embed style matching your new text specs
                 const giveawayEmbed = createEmbed()
-                    .setColor('#00FF7F') // Light spring green color
-                    .setTitle(`🎉 GIVEAWAY STARTED 🎉`)
-                    .setDescription(`React with 🎉 to enter the giveaway draw!`)
+                    .setColor('#00FF7F')
+                    .setTitle(`Giveaway started on **${prize}**`)
+                    .setDescription(`Click the button to enter the giveaway!`)
                     .addFields(
                         { name: '🎁 Prize', value: `**${prize}**`, inline: false },
-                        { name: '⏳ Duration', value: duration, inline: true },
+                        { name: '⏳ Ends In', value: discordLiveTime, inline: true },
                         { name: '👑 Hosted By', value: `${host}`, inline: true }
                     )
-                    .setFooter({ text: 'Make sure to react before time runs out!' })
+                    .setFooter({ text: 'Make sure to enter before time runs out!' })
                     .setTimestamp();
 
-                // Send the giveaway announcement straight to the target channel
-                const giveawayMessage = await targetChannel.send({ embeds: [giveawayEmbed] });
-                
-                // Automatically add the entry reaction emoji for members
-                await giveawayMessage.react('🎉');
+                // Create the blue button to replace reactions
+                const enterButton = new ButtonBuilder()
+                    .setCustomId('enter_giveaway')
+                    .setLabel('🎉 Enter')
+                    .setStyle(ButtonStyle.Primary); // Blue button style
 
-                // Send a confirmation back to the moderator who set it up
+                const row = new ActionRowBuilder().addComponents(enterButton);
+
+                // Send the giveaway message with the embed and button row
+                await targetChannel.send({ embeds: [giveawayEmbed], components: [row] });
+
                 await interaction.editReply({
-                    content: `✅ Successfully started the giveaway for **${prize}** in ${targetChannel}! Layout message deployed.`
+                    content: `✅ Successfully started the live ticking giveaway for **${prize}** in ${targetChannel}!`
                 });
             }
 
