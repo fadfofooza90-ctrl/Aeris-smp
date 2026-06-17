@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
@@ -8,14 +7,14 @@ export default {
         .setName('roleremove')
         .setDescription('Take away a role from a server member')
         .setDMPermission(false)
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles) // Requires Manage Roles permission
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
         .addUserOption(option =>
-            option.setName('user')
+            option.setName('target_user')
                 .setDescription('The member you want to take the role from')
                 .setRequired(true)
         )
         .addRoleOption(option =>
-            option.setName('role')
+            option.setName('target_role')
                 .setDescription('The role you want to remove')
                 .setRequired(true)
         ),
@@ -23,47 +22,42 @@ export default {
 
     async execute(interaction, config, client) {
         try {
+            // Safely set up the deferred thinking message
             const deferSuccess = await InteractionHelper.safeDefer(interaction);
-            if (!deferSuccess) {
-                logger.warn(`RoleRemove interaction defer failed`, {
-                    userId: interaction.user.id,
-                    guildId: interaction.guildId,
-                    commandName: 'roleremove'
-                });
-                return;
-            }
+            if (!deferSuccess) return;
 
-            const targetMember = interaction.options.getMember('user');
-            const role = interaction.options.getRole('role');
-            const botMember = interaction.guild.members.me;
+            // Fetch variables directly using fixed unique names
+            const member = interaction.options.getMember('target_user');
+            const role = interaction.options.getRole('target_role');
 
-            // 1. Safety Check: Is the role higher than the bot's highest role?
-            if (role.position >= botMember.roles.highest.position) {
+            // 1. Fallback check if the member wasn't found in cache
+            if (!member) {
                 return await interaction.editReply({
-                    content: `❌ I cannot remove the role **${role.name}** because it is ranked higher than, or equal to, my own highest role in the server settings!`
+                    content: "❌ I couldn't find that user in this server. Make sure they haven't left."
                 });
             }
 
-            // 2. Safety Check: Is the role manageable by bots?
-            if (!role.editable) {
+            // 2. Clear out hierarchy conflicts right away
+            const botHighestRole = interaction.guild.members.me.roles.highest;
+            if (role.position >= botHighestRole.position) {
                 return await interaction.editReply({
-                    content: `❌ The role **${role.name}** is managed by an external integration or cannot be modified.`
+                    content: `❌ I cannot remove **${role.name}** because that role is higher than (or equal to) my own bot role in the server settings list!`
                 });
             }
 
-            // 3. Check if the user even has the role in the first place
-            if (!targetMember.roles.cache.has(role.id)) {
+            // 3. Verify if they actually have it before attempting removal
+            if (!member.roles.cache.has(role.id)) {
                 return await interaction.editReply({
-                    content: `⚠️ **${targetMember.user.username}** does not have the role **${role.name}**.`
+                    content: `⚠️ **${member.user.username}** doesn't even have the **${role.name}** role.`
                 });
             }
 
-            // 4. Strip the role away
-            await targetMember.roles.remove(role);
+            // 4. Directly modify the member's roles
+            await member.roles.remove(role.id);
 
-            // 5. Send clean confirmation back
+            // 5. Respond clearly
             await interaction.editReply({
-                content: `✅ Successfully removed the role **${role.name}** from **${targetMember.user.username}**!`
+                content: `✅ Successfully stripped the **${role.name}** role from **${member.user.username}**!`
             });
 
         } catch (error) {
