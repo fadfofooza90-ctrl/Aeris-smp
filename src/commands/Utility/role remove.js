@@ -4,7 +4,7 @@ import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('role remove')
+        .setName('role_remove') // Sets command to /role_remove
         .setDescription('Take away a role from a server member')
         .setDMPermission(false)
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
@@ -22,22 +22,19 @@ export default {
 
     async execute(interaction, config, client) {
         try {
-            // Safely set up the deferred thinking message
             const deferSuccess = await InteractionHelper.safeDefer(interaction);
             if (!deferSuccess) return;
 
-            // Fetch variables directly using fixed unique names
             const member = interaction.options.getMember('target_user');
             const role = interaction.options.getRole('target_role');
 
-            // 1. Fallback check if the member wasn't found in cache
             if (!member) {
                 return await interaction.editReply({
-                    content: "❌ I couldn't find that user in this server. Make sure they haven't left."
+                    content: "❌ I couldn't find that user in this server."
                 });
             }
 
-            // 2. Clear out hierarchy conflicts right away
+            // Hierarchy Check: Ensure the bot is high enough in the roles list to touch this role
             const botHighestRole = interaction.guild.members.me.roles.highest;
             if (role.position >= botHighestRole.position) {
                 return await interaction.editReply({
@@ -45,17 +42,16 @@ export default {
                 });
             }
 
-            // 3. Verify if they actually have it before attempting removal
+            // Verify if they have the role
             if (!member.roles.cache.has(role.id)) {
                 return await interaction.editReply({
-                    content: `⚠️ **${member.user.username}** doesn't even have the **${role.name}** role.`
+                    content: `⚠️ **${member.user.username}** doesn't have the **${role.name}** role.`
                 });
             }
 
-            // 4. Directly modify the member's roles
+            // Direct removal using the ID
             await member.roles.remove(role.id);
 
-            // 5. Respond clearly
             await interaction.editReply({
                 content: `✅ Successfully stripped the **${role.name}** role from **${member.user.username}**!`
             });
