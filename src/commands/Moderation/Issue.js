@@ -1,102 +1,77 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createEmbed } from '../../utils/embeds.js';
-import { logger } from '../../utils/logger.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
     data: new SlashCommandBuilder()
         .setName('issue')
-        .setDescription('Log a moderation action issue')
+        .setDescription('Issue a moderation action and log it with a visual status')
         .setDMPermission(false)
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-        // Dropdown menu configuration
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
         .addStringOption(option =>
-            option.setName('type')
-                .setDescription('Select the moderation type')
-                .setRequired(true)
-                .addChoices(
-                    { name: 'Ban', value: 'ban' },
-                    { name: 'Mute/Timeout', value: 'mute' }
-                )
-        )
-        .addStringOption(option =>
-            option.setName('discord_name')
-                .setDescription('The text name of the Discord user (No ping)')
-                .setRequired(true) 
-        )
-        .addStringOption(option =>
-            option.setName('minecraft_name')
-                .setDescription('The Minecraft username of the player')
+            option.setName('minecraft_username')
+                .setDescription('The Minecraft IGN of the player')
                 .setRequired(true)
         )
         .addStringOption(option =>
             option.setName('duration')
-                .setDescription('The duration of the action (e.g., 560 Years, 1 Hour)')
+                .setDescription('Duration of the punishment (e.g., Permanent, 30 Days, 560 Years)')
                 .setRequired(true)
         )
         .addStringOption(option =>
             option.setName('reason')
-                .setDescription('The reason for the punishment')
+                .setDescription('Reason for issuing this punishment')
                 .setRequired(true)
+        )
+        .addUserOption(option =>
+            option.setName('discord_user')
+                .setDescription('The linked Discord user account (optional)')
+                .setRequired(false)
         ),
     category: "Moderation",
 
     async execute(interaction, config, client) {
         try {
             const deferSuccess = await InteractionHelper.safeDefer(interaction);
-            if (!deferSuccess) {
-                logger.warn(`Issue interaction defer failed`, {
-                    userId: interaction.user.id,
-                    guildId: interaction.guildId,
-                    commandName: 'issue'
-                });
-                return;
-            }
+            if (!deferSuccess) return;
 
-            // Collect all inputs
-            const type = interaction.options.getString('type');
-            const discordName = interaction.options.getString('discord_name');
-            const mcName = interaction.options.getString('minecraft_name');
+            const mcUsername = interaction.options.getString('minecraft_username');
             const duration = interaction.options.getString('duration');
             const reason = interaction.options.getString('reason');
-
+            const discordUser = interaction.options.getUser('discord_user');
             const moderator = interaction.user;
 
-            // Base settings for the embed layout configuration
-            let embedTitle = 'Moderation Log: Ban';
-            let embedColor = '#FF0000'; // Red color sidebar for bans
+            const discordUserValue = discordUser ? `${discordUser}` : 'Not Provided';
 
-            // Switch layout values if the moderator chooses Mute
-            if (type === 'mute') {
-                embedTitle = 'Moderation Log: Mute/Timeout';
-                embedColor = '#FFA500'; // Orange color sidebar for mutes
-            }
+            // Safe, non-expiring local attachment conversion
+            const imageUrl = 'https://media.discordapp.net/ephemeral-attachments/1515885694852272258/1516152037505761300/Screenshot_2026-06-11_014315.png?ex=6a34e5de&is=6a33945e&hm=c2ddbc179b6f7a95dd78eb44d885b3f815957094d1e063c398345344d5a0c9cd&=&format=webp&quality=lossless&width=1872&height=921';
+            const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'starry_sky.png' });
 
-            // Build the clean embed logging layout
             const logEmbed = createEmbed()
-                .setColor(embedColor) 
+                .setColor('#2F3136') 
                 .setAuthor({ 
-                    name: `Issued by ${moderator.username}`, 
+                    name: `Issued by ♡`, 
                     iconURL: moderator.displayAvatarURL({ dynamic: true }) 
                 })
-                .setTitle(embedTitle)
+                .setTitle('Moderation Log: Ban')
                 .addFields(
-                    { name: 'Discord User', value: discordName, inline: false },
-                    { name: 'Minecraft Username', value: mcName, inline: true },
+                    { name: 'Discord User', value: discordUserValue, inline: false },
+                    { name: 'Minecraft Username', value: mcUsername, inline: true },
                     { name: 'Duration', value: duration, inline: true },
                     { name: 'Reason', value: reason, inline: true }
                 )
+                // Reference the attached image securely 
+                .setImage('attachment://starry_sky.png') 
                 .setFooter({ 
                     text: `Moderator ID: ${moderator.id}` 
                 })
                 .setTimestamp();
 
-            // Clear the "thinking..." response and send the embed log cleanly
-            await interaction.deleteReply();
-            await interaction.channel.send({ 
-                content: `${moderator}`, 
-                embeds: [logEmbed]
+            // Send the embed alongside the secure file bundle
+            await interaction.editReply({ 
+                embeds: [logEmbed], 
+                files: [bannerAttachment] 
             });
 
         } catch (error) {
