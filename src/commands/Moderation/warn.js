@@ -30,11 +30,14 @@ export default {
             const reason = interaction.options.getString('reason');
             const guild = interaction.guild;
 
-            // 1. Force fetch ALL guild roles from Discord API directly (fixes cache bugs)
+            // 1. Force fetch ALL guild roles from Discord API directly
             const allRoles = await guild.roles.fetch();
             const warn1 = allRoles.find(r => r.name === '1 warnings');
             const warn2 = allRoles.find(r => r.name === '2 warnings');
             const warn3 = allRoles.find(r => r.name === '3 warnings');
+
+            // Find your actual Staff role to mention it properly
+            const staffRole = allRoles.find(r => r.name === 'Staff');
 
             if (!warn1 || !warn2 || !warn3) {
                 return await interaction.editReply({
@@ -42,14 +45,13 @@ export default {
                 });
             }
 
-            // 2. Force fetch the absolute latest member profile from Discord API
+            // 2. Force fetch the absolute latest member profile
             const member = await guild.members.fetch(discordUser.id).catch(() => null);
             let nextWarnLevel = 1;
 
             if (member) {
                 let currentWarnLevel = 0;
                 
-                // Directly check presence of role IDs on the member's profile
                 if (member.roles.cache.has(warn3.id)) currentWarnLevel = 3;
                 else if (member.roles.cache.has(warn2.id)) currentWarnLevel = 2;
                 else if (member.roles.cache.has(warn1.id)) currentWarnLevel = 1;
@@ -65,22 +67,24 @@ export default {
                     await member.roles.add(warn2).catch(err => console.error("Error adding role 2:", err));
                 } 
                 else if (nextWarnLevel >= 3) {
-                    // Cap at level 3 textually
-                    nextWarnLevel = 3; 
+                    nextWarnLevel = 3; // Cap textually
                     await member.roles.remove(warn2).catch(() => null);
                     await member.roles.add(warn3).catch(err => console.error("Error adding role 3:", err));
 
                     // Securely look up the staff channel using your exact channel ID
                     const staffChatChannel = client.channels.cache.get('1513984222346612806');
                     if (staffChatChannel) {
+                        // If the Staff role exists, mention it using its object so it pings, otherwise fallback to text
+                        const staffMention = staffRole ? `${staffRole}` : '@Staff';
+                        
                         await staffChatChannel.send({
-                            content: `⚠️ **Attention** @Staff, ${discordUser} has 3 warnings now take action!`
+                            content: `⚠️ **Attention** ${staffMention}, ${discordUser} has 3 warnings now take action!`
                         }).catch(() => null);
                     }
                 }
             }
 
-            // Create the streamlined layout with the green accent color matching image_d585d6.png
+            // Create the streamlined layout matching image_d5725a.png
             const logEmbed = createEmbed()
                 .setColor('#2ECC71')
                 .setDescription(
