@@ -76,9 +76,9 @@ export default {
 
             const discordUserValue = discordUser ? `${discordUser}` : 'Not Provided';
 
-            // Secure local attachment handling for your star sky background banner
-            const imageUrl = 'https://media.discordapp.net/ephemeral-attachments/1515885694852272258/1516152037505761300/Screenshot_2026-06-11_014315.png?ex=6a34e5de&is=6a33945e&hm=c2ddbc179b6f7a95dd78eb44d885b3f815957094d1e063c398345344d5a0c9cd&=&format=webp&quality=lossless&width=1872&height=921';
-            const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'starry_sky.png' });
+            // Updated with your new landscape shaders wallpaper link!
+            const imageUrl = 'https://media.discordapp.net/attachments/1513984222346612804/1517159270158700705/landscape-minecraft-shaders-wallpaper-preview.jpg?ex=6a35442d&is=6a33f2ad&hm=eb90db56c0e456d322a944e7814a787c9af373bfa4786d1c6e8b9d09312c10e4&=&format=webp&width=1092&height=615';
+            const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'landscape_banner.png' });
 
             // Create base layout structure with gray quote block styling markers inside fields
             const logEmbed = createEmbed()
@@ -87,7 +87,7 @@ export default {
                     name: `Issued by ♡`, 
                     iconURL: moderator.displayAvatarURL({ dynamic: true }) 
                 })
-                .setImage('attachment://starry_sky.png')
+                .setImage('attachment://landscape_banner.png')
                 .setFooter({ text: `Moderator ID: ${moderator.id}` })
                 .setTimestamp();
 
