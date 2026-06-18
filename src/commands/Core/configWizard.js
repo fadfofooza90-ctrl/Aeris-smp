@@ -10,10 +10,6 @@ import {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ChannelSelectMenuBuilder,
-    RoleSelectMenuBuilder,
-    LabelBuilder,
-    ChannelType,
 } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createEmbed, successEmbed, errorEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
@@ -54,34 +50,24 @@ async function notifyWizardDmBlocked(buttonInteraction) {
 }
 
 function formatChannelMention(guild, channelId) {
-    if (!channelId) {
-        return '`Not set`';
-    }
+    if (!channelId) return '`Not set`';
     const channel = guild.channels.cache.get(channelId);
     return channel ? `<#${channelId}>` : `#${channelId}`;
 }
 
 function formatRoleMention(guild, roleId) {
-    if (!roleId) {
-        return '`Not set`';
-    }
+    if (!roleId) return '`Not set`';
     const role = guild.roles.cache.get(roleId);
     return role ? `<@&${roleId}>` : `@${roleId}`;
 }
 
 function getBotPresenceText() {
     const activity = botConfig.presence?.activities?.[0];
-    if (!activity?.name) {
-        return '`Not configured`';
-    }
+    if (!activity?.name) return '`Not configured`';
 
     const typeLabels = ['Playing', 'Streaming', 'Listening to', 'Watching', '', 'Competing in'];
     const typeLabel = typeLabels[activity.type];
-    if (!typeLabel) {
-        return activity.name;
-    }
-
-    return `${typeLabel} **${activity.name}**`;
+    return typeLabel ? `${typeLabel} **${activity.name}**` : activity.name;
 }
 
 function getThemeColorLines() {
@@ -226,22 +212,16 @@ async function askQuestion(dmChannel, userId, prompt, stepNumber, totalSteps) {
 }
 
 function formatSavedAck(key, value, guild) {
-    if (key === 'prefix') {
-        return `Server prefix saved as \`${value}\`.`;
-    }
+    if (key === 'prefix') return `Server prefix saved as \`${value}\`.`;
 
     if (key === 'logChannelId') {
-        if (value === null) {
-            return 'Log channel cleared.';
-        }
+        if (value === null) return 'Log channel cleared.';
         const channel = guild.channels.cache.get(value);
         return `Log channel saved as ${channel ?? `<#${value}>`}.`;
     }
 
     if (key === 'modRole') {
-        if (value === null) {
-            return 'Moderator role cleared.';
-        }
+        if (value === null) return 'Moderator role cleared.';
         const role = guild.roles.cache.get(value);
         return `Moderator role saved as ${role ?? `<@&${value}>`}.`;
     }
@@ -283,7 +263,6 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
     }
 
     activeWizardSessions.add(user.id);
-
     let dmChannel;
 
     try {
@@ -293,9 +272,7 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
         await notifyWizardDmBlocked(buttonInteraction);
         return;
     } finally {
-        if (!dmChannel) {
-            activeWizardSessions.delete(user.id);
-        }
+        if (!dmChannel) activeWizardSessions.delete(user.id);
     }
 
     const prompts = [
@@ -374,13 +351,7 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
                     prompts.length,
                 );
 
-                if (result === null) {
-                    wizardCancelled = true;
-                    answered = true;
-                    break;
-                }
-
-                if (result.cancelled) {
+                if (result === null || result.cancelled) {
                     wizardCancelled = true;
                     answered = true;
                     break;
@@ -390,15 +361,11 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
                     const value = await prompt.parse(result.answer);
 
                     if (value === undefined) {
-                        await dmChannel.send({
-                            embeds: [infoEmbed('Skipped', prompt.skipMessage)],
-                        });
+                        await dmChannel.send({ embeds: [infoEmbed('Skipped', prompt.skipMessage)] });
                     } else {
                         await ConfigService.updateSetting(client, guild.id, prompt.key, value, user.id);
                         changes[prompt.key] = value;
-                        await dmChannel.send({
-                            embeds: [successEmbed('Saved', formatSavedAck(prompt.key, value, guild))],
-                        });
+                        await dmChannel.send({ embeds: [successEmbed('Saved', formatSavedAck(prompt.key, value, guild))] });
 
                         try {
                             const updatedConfig = await getGuildConfig(client, guild.id);
@@ -407,7 +374,6 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
                             logger.debug('Failed to refresh dashboard during setup wizard', { error: refreshError.message });
                         }
                     }
-
                     answered = true;
                 } catch (error) {
                     errors.push(`• ${prompt.key}: ${error.message}`);
@@ -416,10 +382,7 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
                     });
                 }
             }
-
-            if (wizardCancelled) {
-                break;
-            }
+            if (wizardCancelled) break;
         }
 
         if (!wizardCancelled) {
@@ -432,7 +395,7 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
 
         const summaryTitle = wizardCancelled
             ? (Object.keys(changes).length > 0 ? 'Setup Stopped' : 'Setup Cancelled')
-            : (errors.length > 0 ? 'Setup Complete' : 'Setup Complete');
+            : 'Setup Complete';
 
         const summaryBody = wizardCancelled
             ? (Object.keys(changes).length > 0
@@ -468,56 +431,38 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
 
 async function showSettingModal(selectInteraction, guildId, setting) {
     const modalCustomId = `config_wizard_modal:${setting}:${guildId}`;
+    const modal = new ModalBuilder().setCustomId(modalCustomId);
 
     if (setting === 'logChannelId') {
-        const modal = new ModalBuilder()
-            .setCustomId(modalCustomId)
-            .setTitle('📋 Update Log Channel');
-
-        const channelSelect = new ChannelSelectMenuBuilder()
-            .setCustomId('log_channel')
-            .setPlaceholder('Select a text channel...')
-            .setMinValues(1)
-            .setMaxValues(1)
-            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+        modal.setTitle('📋 Update Log Channel');
+        const textInput = new TextInputBuilder()
+            .setCustomId('value')
+            .setLabel('Channel ID, Mention, or "none"')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('#logs or 1515069315836153946')
             .setRequired(true);
 
-        const channelLabel = new LabelBuilder()
-            .setLabel('Log Channel')
-            .setDescription('Channel where system log messages will be sent')
-            .setChannelSelectMenuComponent(channelSelect);
-
-        modal.addLabelComponents(channelLabel);
+        modal.addComponents(new ActionRowBuilder().addComponents(textInput));
         await selectInteraction.showModal(modal);
         return;
     }
 
     if (setting === 'modRole') {
-        const modal = new ModalBuilder()
-            .setCustomId(modalCustomId)
-            .setTitle('🛡️ Update Moderator Role');
-
-        const roleSelect = new RoleSelectMenuBuilder()
-            .setCustomId('mod_role')
-            .setPlaceholder('Select a moderator role...')
-            .setMinValues(1)
-            .setMaxValues(1)
+        modal.setTitle('🛡️ Update Moderator Role');
+        const textInput = new TextInputBuilder()
+            .setCustomId('value')
+            .setLabel('Role ID, Mention, or "none"')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('@Staff or 1008719737825534043')
             .setRequired(true);
 
-        const roleLabel = new LabelBuilder()
-            .setLabel('Moderator Role')
-            .setDescription('Role used for moderation commands')
-            .setRoleSelectMenuComponent(roleSelect);
-
-        modal.addLabelComponents(roleLabel);
+        modal.addComponents(new ActionRowBuilder().addComponents(textInput));
         await selectInteraction.showModal(modal);
         return;
     }
 
-    const modal = new ModalBuilder()
-        .setCustomId(modalCustomId)
-        .setTitle('Update Server Prefix');
-
+    // Default: Prefix
+    modal.setTitle('Update Server Prefix');
     const textInput = new TextInputBuilder()
         .setCustomId('value')
         .setLabel('New prefix (1-10 characters, no spaces)')
@@ -530,42 +475,29 @@ async function showSettingModal(selectInteraction, guildId, setting) {
     await selectInteraction.showModal(modal);
 }
 
-function resolveSettingModalValue(setting, submitted) {
+async function resolveSettingModalValue(setting, submitted, guild) {
+    const rawValue = submitted.fields.getTextInputValue('value')?.trim();
+    if (!rawValue) throw new Error('Input value cannot be empty.');
+
     if (setting === 'logChannelId') {
-        const channelId = submitted.fields.getField('log_channel')?.values?.[0];
-        if (!channelId) {
-            throw new Error('Please select a log channel.');
-        }
-        return channelId;
+        if (rawValue.toLowerCase() === 'none') return null;
+        const id = extractId(rawValue);
+        if (!id) throw new Error('Please provide a valid channel mention or ID.');
+        return await validateGuildChannelId(guild, id);
     }
 
     if (setting === 'modRole') {
-        const roleId = submitted.fields.getField('mod_role')?.values?.[0];
-        if (!roleId) {
-            throw new Error('Please select a moderator role.');
-        }
-        return roleId;
+        if (rawValue.toLowerCase() === 'none') return null;
+        const id = extractId(rawValue);
+        if (!id) throw new Error('Please provide a valid role mention or ID.');
+        return await validateGuildRoleId(guild, id);
     }
 
-    const prefix = submitted.fields.getTextInputValue('value')?.trim();
-    if (!prefix || prefix.length < 1 || prefix.length > 10 || /\s/.test(prefix)) {
+    // Prefix validation
+    if (rawValue.length < 1 || rawValue.length > 10 || /\s/.test(rawValue)) {
         throw new Error('Prefix must be 1-10 characters with no spaces.');
     }
-    return prefix;
-}
-
-function buildSettingSuccessMessage(setting, value, guild) {
-    if (setting === 'logChannelId') {
-        const channel = guild.channels.cache.get(value);
-        return `Log channel set to ${channel ?? `<#${value}>`}.`;
-    }
-
-    if (setting === 'modRole') {
-        const role = guild.roles.cache.get(value);
-        return `Moderator role set to ${role ?? `<@&${value}>`}.`;
-    }
-
-    return `Server prefix set to \`${value}\`.`;
+    return rawValue;
 }
 
 async function handleSettingModalSubmit(selectInteraction, rootInteraction, setting, guildId, client) {
@@ -580,16 +512,14 @@ async function handleSettingModalSubmit(selectInteraction, rootInteraction, sett
         })
         .catch(() => null);
 
-    if (!submitted) {
-        return;
-    }
+    if (!submitted) return;
 
     try {
-        const value = resolveSettingModalValue(setting, submitted);
+        const value = await resolveSettingModalValue(setting, submitted, submitted.guild);
         await ConfigService.updateSetting(client, guildId, setting, value, submitted.user.id);
 
         await submitted.reply({
-            embeds: [successEmbed('Configuration Updated', buildSettingSuccessMessage(setting, value, submitted.guild))],
+            embeds: [successEmbed('Configuration Updated', formatSavedAck(setting, value, submitted.guild))],
             flags: MessageFlags.Ephemeral,
         });
 
@@ -616,9 +546,7 @@ export default {
     async execute(interaction) {
         try {
             const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
-            if (!deferSuccess) {
-                return;
-            }
+            if (!deferSuccess) return;
 
             if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
                 return InteractionHelper.safeEditReply(interaction, {
@@ -633,9 +561,7 @@ export default {
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed], components });
 
             const replyMessage = await interaction.fetchReply().catch(() => null);
-            if (!replyMessage) {
-                return;
-            }
+            if (!replyMessage) return;
 
             const collectorFilter = (componentInteraction) =>
                 componentInteraction.user.id === interaction.user.id &&
