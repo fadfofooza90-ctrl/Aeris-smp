@@ -1,51 +1,44 @@
-if (interaction.isModalSubmit()) {
-    if (interaction.customId === 'suggestion_modal') {
+import { SlashCommandBuilder } from 'discord.js';
+import { handleInteractionError } from '../../utils/errorHandler.js';
+
+export default {
+    data: new SlashCommandBuilder()
+        .setName('suggest')
+        .setDescription('Submit a suggestion for the server')
+        .setDMPermission(false),
+    category: "Utility",
+
+    async execute(interaction, config, client) {
         try {
-            // 1. Instantly acknowledge the submission so the modal doesn't show an error
-            await interaction.deferReply({ ephemeral: true });
+            // We use the raw JSON modal structure directly inside the execute command
+            // so it never interferes with the SlashCommandBuilder registration.
+            const modal = {
+                title: 'Submit a Suggestion',
+                custom_id: 'suggestion_modal',
+                components: [
+                    {
+                        type: 1, // Action Row
+                        components: [
+                            {
+                                type: 4, // Text Input
+                                custom_id: 'suggestion_text',
+                                label: 'What is your suggestion?',
+                                style: 2, // Paragraph layout
+                                placeholder: 'Type your suggestion for Flow SMP here...',
+                                min_length: 10,
+                                max_length: 1000,
+                                required: true
+                            }
+                        ]
+                    }
+                ]
+            };
 
-            // 2. Safely extract the input field value
-            const suggestionText = interaction.fields.getTextInputValue('suggestion_text');
-            const user = interaction.user;
-            const guild = interaction.guild;
-
-            // 3. Look up your personal account (Target DM User ID)
-            const targetUserId = '1008719737825534043';
-            const targetUser = await interaction.client.users.fetch(targetUserId).catch(() => null);
-
-            if (targetUser) {
-                // 4. Send the message directly using a native embed object (no imports required!)
-                await targetUser.send({
-                    embeds: [{
-                        color: 0x2ECC71, // Smooth green edge line
-                        title: '📩 New Server Suggestion',
-                        description: `\`\`\`\n${suggestionText}\n\`\`\``,
-                        fields: [
-                            { name: 'Submitted By', value: `${user} (${user.username})`, inline: true },
-                            { name: 'Server', value: `${guild.name}`, inline: true }
-                        ],
-                        timestamp: new Date()
-                    }]
-                }).catch(err => console.error("Could not send DM to admin:", err.message));
-            }
-
-            // 5. Respond back to the member inside the server chat invisibly
-            await interaction.editReply({
-                content: '✅ Thank you! Your suggestion has been successfully sent to the server administration team.'
-            });
+            // This must be shown instantly to the user
+            await interaction.showModal(modal);
 
         } catch (error) {
-            console.error('Error handling modal submission:', error);
-            // Secure fallback to stop the loading wheel if it gets caught late
-            try {
-                if (interaction.deferred) {
-                    await interaction.editReply({ content: '❌ An error occurred while processing your submission.' });
-                } else {
-                    await interaction.reply({ content: '❌ An error occurred.', ephemeral: true });
-                }
-            } catch (replyError) {
-                // Ignore secondary reply errors
-            }
+            await handleInteractionError(error, interaction);
         }
     }
-}
+};
