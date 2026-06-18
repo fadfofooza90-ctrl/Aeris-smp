@@ -60,6 +60,27 @@ export default {
                         .setDescription('The linked Discord user account (optional)')
                         .setRequired(false)
                 )
+        )
+        // --- WARN SUBCOMMAND ---
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('warn')
+                .setDescription('Log a player warning')
+                .addStringOption(option =>
+                    option.setName('minecraft_username')
+                        .setDescription('The Minecraft IGN of the player')
+                        .setRequired(true)
+                )
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for issuing this warning')
+                        .setRequired(true)
+                )
+                .addUserOption(option =>
+                    option.setName('discord_user')
+                        .setDescription('The linked Discord user account (optional)')
+                        .setRequired(false)
+                )
         ),
     category: "Moderation",
 
@@ -73,7 +94,8 @@ export default {
             const reason = interaction.options.getString('reason');
             const discordUser = interaction.options.getUser('discord_user');
             const moderator = interaction.user;
-            const targetChannel = interaction.channel;
+            
+            const channelId = interaction.channelId; 
 
             const discordUserValue = discordUser ? `${discordUser}` : 'Not Provided';
 
@@ -83,7 +105,7 @@ export default {
             const logEmbed = createEmbed()
                 .setColor('#2F3136')
                 .setAuthor({ 
-                    name: `Issued by ♡`, 
+                    name: `Issued by ${moderator.username}`, 
                     iconURL: moderator.displayAvatarURL({ dynamic: true }) 
                 })
                 .setImage('attachment://landscape_banner.png')
@@ -96,16 +118,17 @@ export default {
                 let displayDuration = durationInput;
                 const minutes = parseInt(durationInput, 10);
 
-                // If input is a valid number of minutes instead of "permanent"
                 if (!isNaN(minutes)) {
                     const expiryTimestamp = Math.floor((Date.now() + minutes * 60 * 1000) / 1000);
                     displayDuration = `<t:${expiryTimestamp}:R>`;
 
-                    // Schedule alert for when the temporary ban ends
                     setTimeout(async () => {
-                        await targetChannel.send({
-                            content: `🔔 ${moderator}, the **${minutes} minute ban** duration for **${mcUsername}** is now over!`
-                        }).catch(() => null);
+                        const targetChannel = client.channels.cache.get(channelId);
+                        if (targetChannel) {
+                            await targetChannel.send({
+                                content: `🔔 ${moderator}, the **${minutes} minute ban** duration for **${mcUsername}** is now over!`
+                            }).catch(() => null);
+                        }
                     }, minutes * 60 * 1000);
                 }
 
@@ -132,12 +155,24 @@ export default {
                         { name: 'Reason', value: `> ${reason}`, inline: true }
                     );
 
-                // Schedule alert for when the timeout ends
                 setTimeout(async () => {
-                    await targetChannel.send({
-                        content: `🔔 ${moderator}, the **${durationMinutes} minute timeout** duration for **${mcUsername}** is now over!`
-                    }).catch(() => null);
+                    const targetChannel = client.channels.cache.get(channelId);
+                    if (targetChannel) {
+                        await targetChannel.send({
+                            content: `🔔 ${moderator}, the **${durationMinutes} minute timeout** duration for **${mcUsername}** is now over!`
+                        }).catch(() => null);
+                    }
                 }, durationMinutes * 60 * 1000);
+            }
+
+            // --- PROCESS WARN LAYOUT (No Duration Field) ---
+            else if (subcommand === 'warn') {
+                logEmbed.setTitle('Moderation Log: Warn')
+                    .addFields(
+                        { name: 'Discord User', value: `> ${discordUserValue}`, inline: false },
+                        { name: 'Minecraft Username', value: `> ${mcUsername}`, inline: true },
+                        { name: 'Reason', value: `> ${reason}`, inline: true }
+                    );
             }
 
             await interaction.editReply({ 
