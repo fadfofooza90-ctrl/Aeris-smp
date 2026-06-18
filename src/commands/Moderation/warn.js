@@ -1,116 +1,87 @@
-import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
-import { logModerationAction } from '../../utils/moderation.js';
-import { logger } from '../../utils/logger.js';
-import { WarningService } from '../../services/warningService.js';
-import { handleInteractionError, TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { createEmbed } from '../../utils/embeds.js';
+import { handleInteractionError } from '../../utils/errorHandler.js';
+
 export default {
     data: new SlashCommandBuilder()
-        .setName("warn")
-        .setDescription("Warn a user")
-        .addUserOption((o) =>
-            o
-                .setName("target")
+        .setName('warn')
+        .setDescription('Warn a user and manage their warning roles')
+        .setDMPermission(false)
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The Discord user to warn')
                 .setRequired(true)
-                .setDescription("User to warn"),
         )
-        .addStringOption((o) =>
-            o
-                .setName("reason")
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for issuing this warning')
                 .setRequired(true)
-                .setDescription("Reason for the warning"),
-        )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-    category: "moderation",
+        ),
+    category: "Moderation",
 
     async execute(interaction, config, client) {
-        const deferSuccess = await InteractionHelper.safeDefer(interaction);
-        if (!deferSuccess) {
-            logger.warn(`Warn interaction defer failed`, {
-                userId: interaction.user.id,
-                guildId: interaction.guildId,
-                commandName: 'warn'
-            });
-            return;
-        }
-
         try {
-                if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) {
-                    throw new Error("You need the `Moderate Members` permission to issue warnings.");
-                }
+            const deferSuccess = await InteractionHelper.safeDefer(interaction);
+            if (!deferSuccess) return;
 
-                const target = interaction.options.getUser("target");
-                const member = interaction.options.getMember("target");
-                const reason = interaction.options.getString("reason");
-                const moderator = interaction.user;
-                const guildId = interaction.guildId;
+            const discordUser = interaction.options.getUser('user');
+            const reason = interaction.options.getString('reason');
+            const guild = interaction.guild;
 
-                if (!target) {
-                    throw new TitanBotError(
-                        'Missing target user',
-                        ErrorTypes.USER_INPUT,
-                        'You must specify a user to warn.',
-                        { subtype: 'invalid_user' },
-                    );
-                }
+            // Fetch the member in the server to manage their roles
+            const member = await guild.members.fetch(discordUser.id).catch(() => null);
+            let nextWarnLevel = 1;
 
-                if (!reason) {
-                    throw new TitanBotError(
-                        'Missing warning reason',
-                        ErrorTypes.VALIDATION,
-                        'You must provide a reason for the warning.',
-                        { subtype: 'missing_required' },
-                    );
-                }
+            if (member) {
+                // Find the server's tracking roles by their exact names
+                const warn1 = guild.roles.cache.find(r => r.name === '1 warnings');
+                const warn2 = guild.roles.cache.find(r => r.name === '2 warnings');
+                const warn3 = guild.roles.cache.find(r => r.name === '3 warnings');
 
-                if (!member) {
-                    throw new Error("The target user is not currently in this server.");
-                }
+                let currentWarnLevel = 0;
+                if (warn3 && member.roles.cache.has(warn3.id)) currentWarnLevel = 3;
+                else if (warn2 && member.roles.cache.has(warn2.id)) currentWarnLevel = 2;
+                else if (warn1 && member.roles.cache.has(warn1.id)) currentWarnLevel = 1;
 
-                const result = await WarningService.addWarning({
-                    guildId,
-                    userId: target.id,
-                    moderatorId: moderator.id,
-                    reason,
-                    timestamp: Date.now()
-                });
+                nextWarnLevel = currentWarnLevel + 1;
 
-                if (!result.success) {
-                    throw new Error("Failed to store warning in database");
-                }
+                // Move them cleanly up the warning levels
+                if (nextWarnLevel === 1 && warn1) {
+                    await member.roles.add(warn1).catch(() => null);
+                } 
+                else if (nextWarnLevel === 2 && warn2) {
+                    if (warn1) await member.roles.remove(warn1).catch(() => null);
+                    await member.roles.add(warn2).catch(() => null);
+                } 
+                else if (nextWarnLevel >= 3 && warn3) {
+                    if (warn2) await member.roles.remove(warn2).catch(() => null);
+                    await member.roles.add(warn3).catch(() => null);
 
-                const totalWarns = result.totalCount;
-
-                await logModerationAction({
-                    client,
-                    guild: interaction.guild,
-                    event: {
-                        action: "User Warned",
-                        target: `${target.tag} (${target.id})`,
-                        executor: `${moderator.tag} (${moderator.id})`,
-                        reason,
-                        metadata: {
-                            userId: target.id,
-                            moderatorId: moderator.id,
-                            totalWarns,
-                            warningNumber: totalWarns,
-                            warningId: result.id
-                        }
+                    // Find the #staff-chat channel and send the staff ping notification
+                    const staffChatChannel = guild.channels.cache.find(c => c.name === 'staff-chat');
+                    if (staffChatChannel) {
+                        await staffChatChannel.send({
+                            content: `⚠️ **Attention** @Staff, the user ${discordUser} has reached **3 warnings** now!`
+                        }).catch(() => null);
                     }
-                });
+                }
+            }
 
-                await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            `⚠️ **Warned** ${target.tag}`,
-                            `**Reason:** ${reason}\n**Total Warns:** ${totalWarns}`,
-                        ),
-                    ],
-                });
+            // Create the streamlined layout with the green accent color
+            const logEmbed = createEmbed()
+                .setColor('#2ECC71') // Light green color edge matching image_d585d6.png
+                .setDescription(
+                    `**Warned** ${discordUser}\n\n` +
+                    `**Reason:** ${reason}\n` +
+                    `**Total Warns:** ${nextWarnLevel}`
+                );
+
+            await interaction.editReply({ embeds: [logEmbed] });
+
         } catch (error) {
-            logger.error('Warn command error:', error);
-            await handleInteractionError(interaction, error, { subtype: 'warn_failed' });
+            await handleInteractionError(error, interaction);
         }
     }
 };
