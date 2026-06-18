@@ -1,4 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
+import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -9,7 +11,6 @@ export default {
 
     async execute(interaction, config, client) {
         try {
-            // Raw JSON object structure for the pop-up modal form
             const modal = {
                 title: 'Submit a Suggestion',
                 custom_id: 'suggestion_modal',
@@ -36,7 +37,7 @@ export default {
             await interaction.showModal(modal);
 
         } catch (error) {
-            console.error("Error showing suggest modal:", error);
+            await handleInteractionError(error, interaction);
         }
     }
 };
