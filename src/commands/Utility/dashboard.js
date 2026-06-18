@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
@@ -6,9 +6,9 @@ import { handleInteractionError } from '../../utils/errorHandler.js';
 export default {
     data: new SlashCommandBuilder()
         .setName('dashboard')
-        .setDescription('View which roles have access to your moderation commands')
+        .setDescription('View system access lists and manage the bot runtime')
         .setDMPermission(false)
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator), // Restricted to Administrators only
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator), // Restricted to Admins only
     category: "Utility",
 
     async execute(interaction, config, client) {
@@ -18,7 +18,7 @@ export default {
 
             const guild = interaction.guild;
 
-            // 1. Fetch all commands registered to this server to read their settings
+            // 1. Fetch active command permissions for /issue
             const guildCommands = await guild.commands.fetch();
             const issueCommand = guildCommands.find(cmd => cmd.name === 'issue');
 
@@ -26,46 +26,50 @@ export default {
 
             if (issueCommand) {
                 try {
-                    // Fetch the live permission overrides for the /issue command
                     const permissions = await guild.commands.permissions.fetch({ command: issueCommand.id });
-                    
-                    // Filter down to roles that are explicitly allowed (true)
                     const allowedRoles = permissions.filter(perm => perm.type === 1 && perm.permission === true);
                     
                     for (const perm of allowedRoles) {
                         permittedRolesList.push(`<@&${perm.id}>`);
                     }
                 } catch (e) {
-                    // If no explicit overrides exist yet, it defaults back to anyone with the "Ban Members" permission
                     permittedRolesList = [];
                 }
             }
 
-            // Fallback description text if no special overrides are configured in Integration settings yet
             if (permittedRolesList.length === 0) {
                 permittedRolesList.push(
                     `*No custom overrides configured yet.*\n` +
-                    `Currently, anyone holding a role with the **Ban Members** permission can view and run \`/issue\`.`
+                    `Currently, anyone holding a role with the **Ban Members** permission can run \`/issue\`.`
                 );
             } else {
                 permittedRolesList = permittedRolesList.map(role => `> ${role}`);
             }
 
-            // 2. Render the System Dashboard Card
+            // 2. Build the Dashboard Embed Card
             const dashboardEmbed = createEmbed()
-                .setColor('#2ECC71') // Smooth green matching your server style
+                .setColor('#2ECC71')
                 .setTitle('⚙️ Flow SMP | Management Dashboard')
                 .setDescription(
                     `### 🛡️ Active Moderation Access\n` +
-                    `The following roles are explicitly granted access to the \`/issue\` command suite (ban, timeout, warn):\n\n` +
+                    `The following roles are explicitly granted access to the \`/issue\` command suite:\n\n` +
                     `${permittedRolesList.join('\n')}\n\n` +
-                    `--- \n` +
-                    `*💡 **Tip:** To add or remove roles from this dashboard, navigate to **Server Settings ➔ Apps ➔ Integrations ➔ ${client.user.username}** inside your Discord client.*`
+                    `### 🚀 System Control\n` +
+                    `Click the button below to initiate a clean software restart. Railway will automatically bring the process back online immediately.`
                 )
                 .setFooter({ text: `Requested by ${interaction.user.username}` })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [dashboardEmbed] });
+            // 3. Create the Restart Interactive Button
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('admin_restart_bot')
+                    .setLabel('Restart Bot Processes')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🔄')
+            );
+
+            await interaction.editReply({ embeds: [dashboardEmbed], components: [row] });
 
         } catch (error) {
             await handleInteractionError(error, interaction);
