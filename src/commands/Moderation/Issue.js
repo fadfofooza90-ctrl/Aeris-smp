@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { createEmbed } from '../../utils/embeds.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
@@ -92,9 +92,8 @@ export default {
             const logFeedChannelId = '1513984222346612805';
             const staffAlertChannelId = '1513984222346612806';
 
-            // Base Image Link string asset
-            const imageUrl = 'https://media.discordapp.net/attachments/1513984222346612804/1517159270158700705/landscape-minecraft-shaders-wallpaper-preview.jpg';
-            const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'landscape_banner.png' });
+            // Direct URL link bypasses upload arrays completely
+            const directImageUrl = 'https://images.wallpapersden.com/image/download/landscape-minecraft-shaders_bWltaGWZm35urWdnamVreW1lZmhpaWc.jpg';
 
             // --- PROCESS BAN SUBCOMMAND ---
             if (subcommand === 'ban') {
@@ -127,7 +126,7 @@ export default {
                     .setColor('#8B0000') // Dark Red
                     .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setTitle('Moderation Log: Ban')
-                    .setImage('attachment://landscape_banner.png')
+                    .setImage(directImageUrl) // Load directly from the web URL string
                     .setFooter({ text: `Moderator ID: ${moderator.id}` })
                     .setTimestamp()
                     .addFields(
@@ -137,7 +136,7 @@ export default {
                         { name: 'Reason', value: `> ${reason}`, inline: true }
                     );
 
-                await interaction.editReply({ embeds: [logEmbed], files: [bannerAttachment] });
+                await interaction.editReply({ embeds: [logEmbed] });
 
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
@@ -163,7 +162,7 @@ export default {
                     .setColor('#8B0000') // Dark Red
                     .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setTitle('Moderation Log: Timeout')
-                    .setImage('attachment://landscape_banner.png')
+                    .setImage(directImageUrl) // Load directly from the web URL string
                     .setFooter({ text: `Moderator ID: ${moderator.id}` })
                     .setTimestamp()
                     .addFields(
@@ -173,7 +172,7 @@ export default {
                         { name: 'Reason', value: `> ${reason}`, inline: true }
                     );
 
-                await interaction.editReply({ embeds: [logEmbed], files: [bannerAttachment] });
+                await interaction.editReply({ embeds: [logEmbed] });
 
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
