@@ -4,44 +4,44 @@ import {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
-    MessageFlags 
+    MessageFlags,
+    EmbedBuilder
 } from 'discord.js';
-import { createEmbed, errorEmbed } from '../../utils/embeds.js';
-import { logger } from '../../utils/logger.js';
 
+// CHANGE THIS to your own user ID so it can send you error alerts!
+const DEVELOPER_USER_ID = '1008719737825534043'; 
 const TARGET_CHANNEL_ID = '1514214180973051925';
 
 export default {
     slashOnly: true,
     data: new SlashCommandBuilder()
         .setName('sendrules')
-        .setDescription('Sends the interactive Rules and Banned Mods selection panel to the rules channel.')
+        .setDescription('Sends the interactive Rules panel to the rules channel.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .setDMPermission(false),
     category: 'Utility',
 
     async execute(interaction, guildConfig, client) {
         try {
-            // Defensively check if deferReply is a function
-            if (typeof interaction.deferReply === 'function') {
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-            }
+            // 1. Instantly defer so Discord stops saying "The application did not respond"
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
+            // 2. Fetch target channel
             const targetChannel = interaction.guild.channels.cache.get(TARGET_CHANNEL_ID) 
                 ?? await interaction.guild.channels.fetch(TARGET_CHANNEL_ID).catch(() => null);
 
             if (!targetChannel || !targetChannel.isTextBased()) {
                 return await interaction.editReply({
-                    embeds: [errorEmbed('Channel Not Found', `Could not find a valid text channel with ID \`${TARGET_CHANNEL_ID}\`.`)]
+                    content: `❌ **Setup Error:** Could not find a valid text channel with ID \`${TARGET_CHANNEL_ID}\`.`
                 });
             }
 
-            const hubEmbed = createEmbed({
-                title: '📜 Server Information & Guidelines',
-                description: 'Welcome to Flow SMP! Please select one of the buttons below to review our server rules, ban durations, and client restrictions.',
-                color: 'primary',
-                footer: 'Make sure to follow all guidelines to keep our community safe and fair.'
-            });
+            // 3. Build the primary menu embed manually using standard discord.js
+            const hubEmbed = new EmbedBuilder()
+                .setTitle('📜 Server Information & Guidelines')
+                .setDescription('Welcome to Flow SMP! Please select one of the buttons below to review our server rules, ban durations, and client restrictions.')
+                .setColor('#5865F2') // Blurple
+                .setFooter({ text: 'Make sure to follow all guidelines to keep our community safe and fair.' });
 
             const buttonRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
@@ -56,22 +56,30 @@ export default {
                     .setStyle(ButtonStyle.Danger)
             );
 
+            // 4. Send the interface message
             await targetChannel.send({
                 embeds: [hubEmbed],
                 components: [buttonRow]
             });
 
+            // 5. Report success back to the admin who executed it
             await interaction.editReply({ content: `✅ Panel successfully posted to <#${TARGET_CHANNEL_ID}>!` });
 
         } catch (error) {
-            logger.error('Error executing sendrules command:', error);
-            
+            // EMERGENCY FALLBACK: Since you have no console, try sending the error to the channel or your DMs
             try {
                 await interaction.editReply({
-                    embeds: [errorEmbed('Command Failed', `An internal error occurred: ${error.message}`)]
+                    content: `⚠️ **An internal crash occurred:** \`\`\`js\n${error.stack || error.message}\n\`\`\``
                 });
-            } catch (replyError) {
-                logger.error('Failed to send error reply back to Discord:', replyError);
+
+                const developer = await client.users.fetch(DEVELOPER_USER_ID).catch(() => null);
+                if (developer) {
+                    await developer.send({
+                        content: `🚨 **Flow SMP Rules Menu Crash Alert:**\n\`\`\`js\n${error.stack || error.message}\n\`\`\``
+                    }).catch(() => {});
+                }
+            } catch (fail) {
+                // If it can't even reply, something is heavily broken with interaction states
             }
         }
     },
