@@ -33,10 +33,10 @@ export default {
                 });
             }
 
-            // 1. Build the Hub View panel
+            // Hub View panel
             const hubEmbed = createEmbed({
                 title: '📜 Server Information & Guidelines',
-                description: 'Welcome! Please select one of the buttons below to review our official server rules and approved client modifications.',
+                description: 'Welcome to Flow SMP! Please select one of the buttons below to review our server rules, ban durations, and client restrictions.',
                 color: 'primary',
                 footer: 'Make sure to follow all guidelines to keep our community safe and fair.'
             });
@@ -44,7 +44,7 @@ export default {
             const buttonRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('rules_basic')
-                    .setLabel('Basic Rules')
+                    .setLabel('Basic Rules & Punishments')
                     .setEmoji('📋')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
@@ -54,50 +54,46 @@ export default {
                     .setStyle(ButtonStyle.Danger)
             );
 
-            // Send the permanent panel message to the dedicated rules channel
             const panelMessage = await targetChannel.send({
                 embeds: [hubEmbed],
                 components: [buttonRow]
             });
 
-            // 2. Set up the infinite collector to handle the button interactions
             const collector = panelMessage.createMessageComponentCollector({
                 filter: (i) => i.customId === 'rules_basic' || i.customId === 'rules_mods',
-                // No time limit so the button remains permanently active while the bot is online
             });
 
             collector.on('collect', async (btnInteraction) => {
                 try {
-                    // Always reply ephemrally so it doesn't clutter the channel for other users
                     await btnInteraction.deferReply({ flags: MessageFlags.Ephemeral });
 
                     if (btnInteraction.customId === 'rules_basic') {
                         const basicRulesEmbed = createEmbed({
-                            title: '📋 Server Rules',
+                            title: '📋 Flow SMP Server Rules',
                             color: 'info',
-                            description: 'Please review our community guidelines below. Use common sense if it feels unfair, or you will get banned for it.',
+                            description: 'Please review our community guidelines and official ban times below. Use common sense if it feels unfair, or you will get banned for it.',
                             fields: [
-                                { name: 'R1', value: 'No naked killing', inline: true },
-                                { name: 'R2', value: 'No spawn camping', inline: true },
-                                { name: 'R3', value: 'Lag machine', inline: true },
-                                { name: 'R4', value: 'Wither spawning', inline: true },
-                                { name: 'R5', value: 'Chat rules', inline: true },
-                                { name: 'R6', value: 'No Stasis Chambers in combat', inline: true },
-                                { name: 'R7', value: 'Pushing out of spawn', inline: true },
-                                { name: 'R8', value: 'No elytra in combat', inline: true },
-                                { name: 'R9', value: 'Noobie protection', inline: true },
-                                { name: 'R10', value: 'Instant damage arrows', inline: true },
-                                { name: 'R11', value: 'No crystals', inline: true },
-                                { name: 'R12', value: 'String drop at spawn', inline: true },
-                                { name: 'R13', value: 'No trident in combat', inline: true }, // Added as requested
-                                { name: 'R14', value: 'Toxicity', inline: true },
-                                { name: 'R15', value: 'Excessive swearing—Chat flood', inline: true },
-                                { name: 'R16', value: 'Staff decisions must be respected', inline: true },
-                                { name: 'R17', value: 'English only—Advertising other servers', inline: false },
-                                { name: 'R18', value: 'Ticket spam', inline: true },
-                                { name: 'R19', value: 'Incorrect team size', inline: true },
-                                { name: 'R20', value: 'Duping/Cheating', inline: true },
-                                { name: 'R21', value: 'Arguing about moderation', inline: false },
+                                { name: '⚠️ R1 No naked killing', value: '⏱️ **3h ban**', inline: true },
+                                { name: '⚠️ R2 No spawn camping', value: '⏱️ **5h ban**', inline: true },
+                                { name: '⚠️ R3 Lag machine', value: '⏱️ **3 days ban**', inline: true },
+                                { name: '⚠️ R4 Wither spawning', value: '⏱️ **1 day ban** (At Spawn)', inline: true },
+                                { name: '⚠️ R5 Chat rules', value: '⏱️ **2h ban**', inline: true },
+                                { name: '⚠️ R6 No Stasis Chambers', value: '⏱️ **3h ban** (In Combat)', inline: true },
+                                { name: '⚠️ R7 Pushing out of spawn', value: '⏱️ **5h ban**', inline: true },
+                                { name: '⚠️ R8 No elytra in combat', value: '⏱️ **4h ban**', inline: true },
+                                { name: '⚠️ R9 Noobie protection', value: '⏱️ **2h ban** (Abuse)', inline: true },
+                                { name: '⚠️ R10 Instant damage arrows', value: '⏱️ **3h ban**', inline: true },
+                                { name: '⚠️ R11 No crystals', value: '⏱️ **5h ban**', inline: true },
+                                { name: '⚠️ R12 String drop at spawn', value: '⏱️ **1h ban**', inline: true },
+                                { name: '⚠️ R13 No trident in combat', value: '⏱️ **4h ban**', inline: true },
+                                { name: '⚠️ R14 Toxicity', value: '⏱️ **3h ban**', inline: true },
+                                { name: '⚠️ R15 Excessive swearing', value: '⏱️ **1 day ban** (Chat Flood)', inline: true },
+                                { name: '⚠️ R16 English only', value: '⏱️ **2h ban**', inline: true },
+                                { name: '⚠️ R17 Advertising servers', value: '⏱️ **4h ban**', inline: true },
+                                { name: '⚠️ R18 Ticket spam', value: '⏱️ **7h ban**', inline: true },
+                                { name: '⚠️ R19 Incorrect team size', value: '⏱️ *Staff review*', inline: true },
+                                { name: '⚠️ R20 Duping/Cheating', value: '⏱️ **7 days ban**', inline: true },
+                                { name: '⚠️ R21 Staff Respect / Moderation', value: '⏱️ **6h ban** (Arguing with staff or about mod decisions)', inline: false },
                             ],
                             footer: 'Reporting players requires evidence; please make sure to have evidence before making tickets. Please don\'t ask staff to check your tickets or ping them.'
                         });
@@ -111,30 +107,12 @@ export default {
                             color: 'error',
                             description: 'Any modifications that grant an unfair advantage over vanilla players are strictly prohibited.',
                             fields: [
-                                { 
-                                    name: '🚫 Hacked Clients & Movement Modifiers', 
-                                    value: 'Includes any mods that allow flight, speed hacking, freecam, or fast break.' 
-                                },
-                                { 
-                                    name: '👁️ X-Ray & Vision Enhancers', 
-                                    value: 'Mods that let you see through blocks, caves, or player names behind walls.' 
-                                },
-                                { 
-                                    name: '🤖 Automation & Macros', 
-                                    value: 'Auto-clicking/burst-clicking buttons, auto-sprint, auto-eating, and automated fishing or farming macros.' 
-                                },
-                                { 
-                                    name: '⚔️ PvP Assistance', 
-                                    value: 'Kill-aura, aim assist, reach extenders, auto-totem, and triggerbots.' 
-                                },
-                                { 
-                                    name: '⚠️ Malware & IP Stealers', 
-                                    value: 'Mods containing malicious code or scripts that attempt to access your computer’s IP or system information.' 
-                                },
-                                { 
-                                    name: '🗺️ Unapproved Aesthetic Features', 
-                                    value: 'Certain minimap mods that indicate the location of nearby players or entities.' 
-                                }
+                                { name: '🚫 Hacked Clients & Movement Modifiers', value: 'Includes any mods that allow flight, speed hacking, freecam, or fast break.' },
+                                { name: '👁️ X-Ray & Vision Enhancers', value: 'Mods that let you see through blocks, caves, or player names behind walls.' },
+                                { name: '🤖 Automation & Macros', value: 'Auto-clicking/burst-clicking buttons, auto-sprint, auto-eating, and automated fishing or farming macros.' },
+                                { name: '⚔️ PvP Assistance', value: 'Kill-aura, aim assist, reach extenders, auto-totem, and triggerbots.' },
+                                { name: '⚠️ Malware & IP Stealers', value: 'Mods containing malicious code or scripts that attempt to access your computer’s IP or system information.' },
+                                { name: '🗺️ Unapproved Aesthetic Features', value: 'Certain minimap mods that indicate the location of nearby players or entities.' }
                             ],
                             footer: 'Use common sense if it feels unfair, or you will get banned for it.'
                         });
