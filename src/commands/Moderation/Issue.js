@@ -92,6 +92,10 @@ export default {
             const logFeedChannelId = '1513984222346612805';
             const staffAlertChannelId = '1513984222346612806';
 
+            // Base Image Link string asset
+            const imageUrl = 'https://media.discordapp.net/attachments/1513984222346612804/1517159270158700705/landscape-minecraft-shaders-wallpaper-preview.jpg';
+            const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'landscape_banner.png' });
+
             // --- PROCESS BAN SUBCOMMAND ---
             if (subcommand === 'ban') {
                 const mcUsername = interaction.options.getString('minecraft_username');
@@ -119,11 +123,8 @@ export default {
                     }, minutes * 60 * 1000);
                 }
 
-                const imageUrl = 'https://media.discordapp.net/attachments/1513984222346612804/1517159270158700705/landscape-minecraft-shaders-wallpaper-preview.jpg?ex=6a35442d&is=6a33f2ad&hm=eb90db56c0e456d322a944e7814a787c9af373bfa4786d1c6e8b9d09312c10e4&=&format=webp&width=1092&height=615';
-                const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'landscape_banner.png' });
-
                 const logEmbed = createEmbed()
-                    .setColor('#2F3136')
+                    .setColor('#8B0000') // Dark Red
                     .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setTitle('Moderation Log: Ban')
                     .setImage('attachment://landscape_banner.png')
@@ -138,7 +139,6 @@ export default {
 
                 await interaction.editReply({ embeds: [logEmbed], files: [bannerAttachment] });
 
-                // Custom Log formatting: {user} has been banned by {issuer} {reason} {duration}
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
                     await logFeedChannel.send({
@@ -159,11 +159,8 @@ export default {
                 const expiryTimestamp = Math.floor((Date.now() + durationMinutes * 60 * 1000) / 1000);
                 const liveCountdownString = `<t:${expiryTimestamp}:R>`;
 
-                const imageUrl = 'https://media.discordapp.net/attachments/1513984222346612804/1517159270158700705/landscape-minecraft-shaders-wallpaper-preview.jpg?ex=6a35442d&is=6a33f2ad&hm=eb90db56c0e456d322a944e7814a787c9af373bfa4786d1c6e8b9d09312c10e4&=&format=webp&width=1092&height=615';
-                const bannerAttachment = new AttachmentBuilder(imageUrl, { name: 'landscape_banner.png' });
-
                 const logEmbed = createEmbed()
-                    .setColor('#2F3136')
+                    .setColor('#8B0000') // Dark Red
                     .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setTitle('Moderation Log: Timeout')
                     .setImage('attachment://landscape_banner.png')
@@ -178,7 +175,6 @@ export default {
 
                 await interaction.editReply({ embeds: [logEmbed], files: [bannerAttachment] });
 
-                // Custom Log formatting: {user} has been muted by {issuer} {reason} {duration}
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
                     await logFeedChannel.send({
@@ -254,7 +250,6 @@ export default {
 
                 await interaction.editReply({ embeds: [logEmbed] });
 
-                // Custom Log formatting: {user} has been warned by {issuer} {reason}
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
                     await logFeedChannel.send({
