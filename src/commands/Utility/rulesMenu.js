@@ -19,7 +19,7 @@ export default {
         .setDMPermission(false),
     category: 'Utility',
 
-    async execute(interaction) {
+    async execute(interaction, guildConfig, client) {
         try {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
