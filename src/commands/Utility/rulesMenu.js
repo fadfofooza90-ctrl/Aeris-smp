@@ -68,37 +68,32 @@ export default {
                     await btnInteraction.deferReply({ flags: MessageFlags.Ephemeral });
 
                     if (btnInteraction.customId === 'rules_basic') {
-                        // Dynamically look up the :Punished: emoji inside this server's cache
-                        const punishedEmoji = btnInteraction.guild.emojis.cache.find(e => e.name === 'Punished');
-                        // Fallback to a warning emoji if the bot somehow can't find it
-                        const emojiPrefix = punishedEmoji ? `${punishedEmoji}` : '⚠️';
-
                         const basicRulesEmbed = createEmbed({
                             title: '📋 Flow SMP Server Rules',
                             color: 'info',
                             description: 'Please review our community guidelines and official ban times below. Use common sense if it feels unfair, or you will get banned for it.',
                             fields: [
-                                { name: `${emojiPrefix} R1 No naked killing`, value: '⏱️ **3h ban**', inline: true },
-                                { name: `${emojiPrefix} R2 No spawn camping`, value: '⏱️ **5h ban**', inline: true },
-                                { name: `${emojiPrefix} R3 Lag machine`, value: '⏱️ **3 days ban**', inline: true },
-                                { name: `${emojiPrefix} R4 Wither spawning`, value: '⏱️ **1 day ban** (At Spawn)', inline: true },
-                                { name: `${emojiPrefix} R5 Chat rules`, value: '⏱️ **2h ban**', inline: true },
-                                { name: `${emojiPrefix} R6 No Stasis Chambers`, value: '⏱️ **3h ban** (In Combat)', inline: true },
-                                { name: `${emojiPrefix} R7 Pushing out of spawn`, value: '⏱️ **5h ban**', inline: true },
-                                { name: `${emojiPrefix} R8 No elytra in combat`, value: '⏱️ **4h ban**', inline: true },
-                                { name: `${emojiPrefix} R9 Noobie protection`, value: '⏱️ **2h ban** (Abuse)', inline: true },
-                                { name: `${emojiPrefix} R10 Instant damage arrows`, value: '⏱️ **3h ban**', inline: true },
-                                { name: `${emojiPrefix} R11 No crystals', value: '⏱️ **5h ban**`, inline: true },
-                                { name: `${emojiPrefix} R12 String drop at spawn`, value: '⏱️ **1h ban**', inline: true },
-                                { name: `${emojiPrefix} R13 No trident in combat`, value: '⏱️ **4h ban**', inline: true },
-                                { name: `${emojiPrefix} R14 Toxicity`, value: '⏱️ **3h ban**', inline: true },
-                                { name: `${emojiPrefix} R15 Excessive swearing`, value: '⏱️ **1 day ban** (Chat Flood)', inline: true },
-                                { name: `${emojiPrefix} R16 English only`, value: '⏱️ **2h ban**', inline: true },
-                                { name: `${emojiPrefix} R17 Advertising servers`, value: '⏱️ **4h ban**', inline: true },
-                                { name: `${emojiPrefix} R18 Ticket spam`, value: '⏱️ **7h ban**', inline: true },
-                                { name: `${emojiPrefix} R19 Incorrect team size`, value: '⏱️ *Staff review*', inline: true },
-                                { name: `${emojiPrefix} R20 Duping/Cheating`, value: '⏱️ **7 days ban**', inline: true },
-                                { name: `${emojiPrefix} R21 Staff Respect / Moderation`, value: '⏱️ **6h ban** (Arguing with staff or about mod decisions)', inline: false },
+                                { name: '⚖️ R1 No naked killing', value: '⏱️ **3h ban**', inline: true },
+                                { name: '⚖️ R2 No spawn camping', value: '⏱️ **5h ban**', inline: true },
+                                { name: '⚖️ R3 Lag machine', value: '⏱️ **3 days ban**', inline: true },
+                                { name: '⚖️ R4 Wither spawning', value: '⏱️ **1 day ban** (At Spawn)', inline: true },
+                                { name: '⚖️ R5 Chat rules', value: '⏱️ **2h ban**', inline: true },
+                                { name: '⚖️ R6 No Stasis Chambers', value: '⏱️ **3h ban** (In Combat)', inline: true },
+                                { name: '⚖️ R7 Pushing out of spawn', value: '⏱️ **5h ban**', inline: true },
+                                { name: '⚖️ R8 No elytra in combat', value: '⏱️ **4h ban**', inline: true },
+                                { name: '⚖️ R9 Noobie protection', value: '⏱️ **2h ban** (Abuse)', inline: true },
+                                { name: '⚖️ R10 Instant damage arrows', value: '⏱️ **3h ban**', inline: true },
+                                { name: '⚖️ R11 No crystals', value: '⏱️ **5h ban**', inline: true },
+                                { name: '⚖️ R12 String drop at spawn', value: '⏱️ **1h ban**', inline: true },
+                                { name: '⚖️ R13 No trident in combat', value: '⏱️ **4h ban**', inline: true },
+                                { name: '⚖️ R14 Toxicity', value: '⏱️ **3h ban**', inline: true },
+                                { name: '⚖️ R15 Excessive swearing', value: '⏱️ **1 day ban** (Chat Flood)', inline: true },
+                                { name: '⚖️ R16 English only', value: '⏱️ **2h ban**', inline: true },
+                                { name: '⚖️ R17 Advertising servers', value: '⏱️ **4h ban**', inline: true },
+                                { name: '⚖️ R18 Ticket spam', value: '⏱️ **7h ban**', inline: true },
+                                { name: '⚖️ R19 Incorrect team size', value: '⏱️ *Staff review*', inline: true },
+                                { name: '⚖️ R20 Duping/Cheating', value: '⏱️ **7 days ban**', inline: true },
+                                { name: '⚖️ R21 Staff Respect / Moderation', value: '⏱️ **6h ban** (Arguing with staff or about mod decisions)', inline: false },
                             ],
                             footer: "Reporting players requires evidence; please make sure to have evidence before making tickets. Please don't ask staff to check your tickets or ping them."
                         });
