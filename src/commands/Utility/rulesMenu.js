@@ -7,6 +7,7 @@ import {
     MessageFlags 
 } from 'discord.js';
 import { createEmbed, errorEmbed } from '../../utils/embeds.js';
+import { logger } from '../../utils/logger.js';
 
 const TARGET_CHANNEL_ID = '1514214180973051925';
 
@@ -21,7 +22,10 @@ export default {
 
     async execute(interaction, guildConfig, client) {
         try {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            // Defensively check if deferReply is a function
+            if (typeof interaction.deferReply === 'function') {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            }
 
             const targetChannel = interaction.guild.channels.cache.get(TARGET_CHANNEL_ID) 
                 ?? await interaction.guild.channels.fetch(TARGET_CHANNEL_ID).catch(() => null);
@@ -60,10 +64,15 @@ export default {
             await interaction.editReply({ content: `✅ Panel successfully posted to <#${TARGET_CHANNEL_ID}>!` });
 
         } catch (error) {
-            console.error('Error executing sendrules command:', error);
-            await interaction.editReply({
-                embeds: [errorEmbed('Command Failed', 'An internal error occurred while deploying the rules window.')]
-            }).catch(() => {});
+            logger.error('Error executing sendrules command:', error);
+            
+            try {
+                await interaction.editReply({
+                    embeds: [errorEmbed('Command Failed', `An internal error occurred: ${error.message}`)]
+                });
+            } catch (replyError) {
+                logger.error('Failed to send error reply back to Discord:', replyError);
+            }
         }
     },
 };
