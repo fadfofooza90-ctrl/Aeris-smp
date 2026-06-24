@@ -9,7 +9,8 @@ import {
     TextInputBuilder,
     TextInputStyle,
     StringSelectMenuBuilder,
-    StringSelectMenuOptionBuilder
+    StringSelectMenuOptionBuilder,
+    ComponentType
 } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
@@ -57,8 +58,12 @@ export default {
         if (subcommand === 'dashboard') {
             const currentConfig = readConfig();
 
-            // Function to generate the fresh UI layout
             const generateEmbed = (config) => {
+                // Formatting the display beautifully so minutes read nicely as hours if divisible by 60
+                const displayTime = config.muteDurationMinutes >= 60 
+                    ? `${config.muteDurationMinutes / 60} Hour(s)` 
+                    : `${config.muteDurationMinutes} Minute(s)`;
+
                 return new EmbedBuilder()
                     .setTitle('🛡️ AutoMod Configuration Dashboard')
                     .setDescription('Below are the live protection vectors running on the network loop engine.')
@@ -66,14 +71,13 @@ export default {
                     .addFields(
                         { name: '🟢 System Status', value: '> Active & Filtering', inline: true },
                         { name: '📺 Log Target Channel', value: `> <#${config.logChannelId}>`, inline: true },
-                        { name: '⏱️ Action Penalty', value: `> \`${config.muteDurationMinutes} Minute(s) Timeout\``, inline: false },
+                        { name: '⏱️ Action Penalty', value: `> \`${displayTime} Timeout\``, inline: false },
                         { name: '📋 Blacklisted Target Strings', value: config.blockedWords.map(word => `• \`${word}\``).join('\n'), inline: false }
                     )
                     .setFooter({ text: 'Flow SMP Security Panel' })
                     .setTimestamp();
             };
 
-            // Two buttons side-by-side in a control row
             const buttonsRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('automod_add_word')
@@ -90,14 +94,15 @@ export default {
                 components: [buttonsRow] 
             });
 
-            const collector = response.createMessageComponentCollector({ time: 300000 }); // Active for 5 minutes
+            // Keep collector alive for 10 minutes
+            const collector = response.createMessageComponentCollector({ time: 600000 });
 
             collector.on('collect', async i => {
                 if (!i.member.roles.cache.some(role => allowedRoles.includes(role.id))) {
                     return await i.reply({ content: '❌ You cannot interact with this panel.', ephemeral: true });
                 }
 
-                // --- OPTION A: ADD BLACKLISTED WORDS BUTTON ---
+                // --- ADD WORDS BUTTON ---
                 if (i.customId === 'automod_add_word') {
                     const modal = new ModalBuilder()
                         .setCustomId('automod_modal_form')
@@ -128,29 +133,36 @@ export default {
                     }
                 }
 
-                // --- OPTION B: CHANGE MUTE DURATION BUTTON ---
+                // --- CHANGE MUTE DURATION BUTTON (FIXED EXPLICIT INTERACTION) ---
                 if (i.customId === 'automod_change_duration') {
                     const selectMenu = new StringSelectMenuBuilder()
                         .setCustomId('automod_select_duration')
                         .setPlaceholder('Select the new timeout penalty duration...')
                         .addOptions(
-                            new StringSelectMenuOptionBuilder().setLabel('30 Minutes').setValue('30').setDescription('Sets mute duration to 30m'),
-                            new StringSelectMenuOptionBuilder().setLabel('1 Hour').setValue('60').setDescription('Sets mute duration to 1h (Default)'),
-                            new StringSelectMenuOptionBuilder().setLabel('2 Hours').setValue('120').setDescription('Sets mute duration to 2h'),
-                            new StringSelectMenuOptionBuilder().setLabel('3 Hours').setValue('180').setDescription('Sets mute duration to 3h')
+                            new StringSelectMenuOptionBuilder().setLabel('1 Hour').setValue('60'),
+                            new StringSelectMenuOptionBuilder().setLabel('2 Hours').setValue('120'),
+                            new StringSelectMenuOptionBuilder().setLabel('3 Hours').setValue('180'),
+                            new StringSelectMenuOptionBuilder().setLabel('4 Hours').setValue('240'),
+                            new StringSelectMenuOptionBuilder().setLabel('5 Hours').setValue('300'),
+                            new StringSelectMenuOptionBuilder().setLabel('6 Hours').setValue('360'),
+                            new StringSelectMenuOptionBuilder().setLabel('7 Hours').setValue('420'),
+                            new StringSelectMenuOptionBuilder().setLabel('8 Hours').setValue('480'),
+                            new StringSelectMenuOptionBuilder().setLabel('9 Hours').setValue('540')
                         );
 
                     const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
-                    // Send the select menu row as an ephemeral reply so it doesn't crowd chat
+                    // Use i.reply safely with component type separation tracking
                     const menuMessage = await i.reply({ 
                         content: 'Select a standard duration threshold from the options below:', 
                         components: [selectRow], 
                         ephemeral: true 
                     });
 
-                    // Collect the choice from the select menu
-                    const selectCollector = menuMessage.createMessageComponentCollector({ time: 30000 });
+                    const selectCollector = menuMessage.createMessageComponentCollector({ 
+                        componentType: ComponentType.StringSelect,
+                        time: 60000 
+                    });
 
                     selectCollector.on('collect', async selectInteraction => {
                         if (selectInteraction.customId === 'automod_select_duration') {
@@ -160,11 +172,15 @@ export default {
                             freshConfig.muteDurationMinutes = selectedMinutes;
                             writeConfig(freshConfig);
 
-                            // Delete or clear out the menu option interface cleanly
-                            await selectInteraction.update({ content: `✅ Penalty duration successfully updated to **${selectedMinutes} minutes**!`, components: [] });
+                            // Safely update the dropdown overlay message
+                            await selectInteraction.update({ 
+                                content: `✅ Penalty duration successfully updated to **${selectedMinutes / 60} Hour(s)**!`, 
+                                components: [] 
+                            });
                             
-                            // Re-render the primary root dashboard embed interface live
+                            // Instantly refresh the main visible dashboard layout embed
                             await interaction.editReply({ embeds: [generateEmbed(freshConfig)] });
+                            selectCollector.stop();
                         }
                     });
                 }
