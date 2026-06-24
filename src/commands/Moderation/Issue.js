@@ -9,6 +9,7 @@ export default {
         .setDescription('Issue a network or server moderation action')
         .setDMPermission(false)
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+        
         // --- BAN SUBCOMMAND ---
         .addSubcommand(subcommand =>
             subcommand
@@ -29,12 +30,18 @@ export default {
                         .setDescription('Reason for issuing this ban')
                         .setRequired(true)
                 )
+                .addAttachmentOption(option =>
+                    option.setName('proof')
+                        .setDescription('Upload mandatory visual evidence or a screenshot of the infraction')
+                        .setRequired(true) // 👈 Forces upload
+                )
                 .addUserOption(option =>
                     option.setName('discord_user')
                         .setDescription('The linked Discord user account (optional)')
                         .setRequired(false)
                 )
         )
+        
         // --- TIMEOUT SUBCOMMAND ---
         .addSubcommand(subcommand =>
             subcommand
@@ -55,12 +62,18 @@ export default {
                         .setDescription('Reason for issuing this timeout')
                         .setRequired(true)
                 )
+                .addAttachmentOption(option =>
+                    option.setName('proof')
+                        .setDescription('Upload mandatory visual evidence or a screenshot of the infraction')
+                        .setRequired(true) // 👈 Forces upload
+                )
                 .addUserOption(option =>
                     option.setName('discord_user')
                         .setDescription('The linked Discord user account (optional)')
                         .setRequired(false)
                 )
         )
+        
         // --- WARN SUBCOMMAND ---
         .addSubcommand(subcommand =>
             subcommand
@@ -75,6 +88,11 @@ export default {
                     option.setName('reason')
                         .setDescription('Reason for issuing this warning')
                         .setRequired(true)
+                )
+                .addAttachmentOption(option =>
+                    option.setName('proof')
+                        .setDescription('Upload mandatory visual evidence or a screenshot of the infraction')
+                        .setRequired(true) // 👈 Forces upload
                 )
         ),
     category: "Moderation",
@@ -92,8 +110,20 @@ export default {
             const logFeedChannelId = '1513984222346612805';
             const staffAlertChannelId = '1513984222346612806';
 
-            // Direct URL link bypasses upload arrays completely
-            const directImageUrl = 'https://images.wallpapersden.com/image/download/landscape-minecraft-shaders_bWltaGWZm35urWdnamVreW1lZmhpaWc.jpg';
+            // Pull the required dynamic attachment upload out of the parameters payload
+            const proofAttachment = interaction.options.getAttachment('proof');
+
+            // Optional check to make sure they are uploading an image file format
+            if (proofAttachment) {
+                const contentType = proofAttachment.contentType || '';
+                if (!contentType.startsWith('image/')) {
+                    return await interaction.editReply({
+                        content: '❌ **Submission Canceled:** The proof attachment slot must be a valid image file (.png, .jpg, .webp).'
+                    });
+                }
+            }
+
+            const visualProofUrl = proofAttachment.url;
 
             // --- PROCESS BAN SUBCOMMAND ---
             if (subcommand === 'ban') {
@@ -123,10 +153,10 @@ export default {
                 }
 
                 const logEmbed = createEmbed()
-                    .setColor('#8B0000') // Dark Red
+                    .setColor('#8B0000') 
                     .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setTitle('Moderation Log: Ban')
-                    .setImage(directImageUrl) // Load directly from the web URL string
+                    .setImage(visualProofUrl) // Placed dynamic user upload url directly here!
                     .setFooter({ text: `Moderator ID: ${moderator.id}` })
                     .setTimestamp()
                     .addFields(
@@ -141,7 +171,7 @@ export default {
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
                     await logFeedChannel.send({
-                        content: `🔨 ${targetMentionOrUsername} has been banned by ${moderator} **${reason}** **${durationInput}**`
+                        content: `🔨 ${targetMentionOrUsername} has been banned by ${moderator} for **${reason}** (${durationInput})`
                     }).catch(() => null);
                 }
             }
@@ -159,10 +189,10 @@ export default {
                 const liveCountdownString = `<t:${expiryTimestamp}:R>`;
 
                 const logEmbed = createEmbed()
-                    .setColor('#8B0000') // Dark Red
+                    .setColor('#8B0000') 
                     .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setTitle('Moderation Log: Timeout')
-                    .setImage(directImageUrl) // Load directly from the web URL string
+                    .setImage(visualProofUrl) // Placed dynamic user upload url directly here!
                     .setFooter({ text: `Moderator ID: ${moderator.id}` })
                     .setTimestamp()
                     .addFields(
@@ -177,7 +207,7 @@ export default {
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
                     await logFeedChannel.send({
-                        content: `⏳ ${targetMentionOrUsername} has been muted by ${moderator} **${reason}** **${durationMinutes}m**`
+                        content: `⏳ ${targetMentionOrUsername} has been muted by ${moderator} for **${reason}** (${durationMinutes}m)`
                     }).catch(() => null);
                 }
 
@@ -233,7 +263,7 @@ export default {
                         if (staffChatChannel) {
                             const staffMention = staffRole ? `${staffRole}` : '@Staff';
                             await staffChatChannel.send({
-                                content: `⚠️ **Attention** ${staffMention}, ${discordUser} has 3 warnings now take action!`
+                                content: `⚠️ **Attention** ${staffMention}, ${discordUser} has reached 3 warnings! Check logs and take action.`
                             }).catch(() => null);
                         }
                     }
@@ -241,18 +271,23 @@ export default {
 
                 const logEmbed = createEmbed()
                     .setColor('#2ECC71')
+                    .setTitle('Moderation Log: Warning')
+                    .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
                     .setDescription(
-                        `**Warned** ${discordUser}\n\n` +
+                        `**Warned Account:** ${discordUser}\n` +
                         `**Reason:** ${reason}\n` +
-                        `**Total Warns:** ${nextWarnLevel}`
-                    );
+                        `**Updated Warning Tier:** Level ${nextWarnLevel} / 3`
+                    )
+                    .setImage(visualProofUrl) // Added dynamic proof photo rendering to warnings as well
+                    .setFooter({ text: `Moderator ID: ${moderator.id}` })
+                    .setTimestamp();
 
                 await interaction.editReply({ embeds: [logEmbed] });
 
                 const logFeedChannel = client.channels.cache.get(logFeedChannelId);
                 if (logFeedChannel) {
                     await logFeedChannel.send({
-                        content: `⚠️ ${discordUser} has been warned by ${moderator} **${reason}**`
+                        content: `⚠️ ${discordUser} has been warned by ${moderator} for **${reason}**`
                     }).catch(() => null);
                 }
             }
