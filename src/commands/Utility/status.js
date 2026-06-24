@@ -44,15 +44,16 @@ export default {
                     .trim();
             }
 
-            // Extract the player metrics and format the name list array
+            // Extract the player metrics and format the name list array safely
             const onlineCount = data.players?.online ?? 0;
             const maxCount = data.players?.max ?? 20;
             const playerArray = data.players?.list || [];
 
-            // Build the list string. If no names are returned or player count is 0, show a placeholder.
+            // Build the list string. 
             let playerListDisplay = "*No players online*";
             if (onlineCount > 0 && playerArray.length > 0) {
-                playerListDisplay = playerArray.map(name => `• ${name}`).join('\n');
+                // FIXED HERE: Tapped into player.name to grab the string instead of the full object!
+                playerListDisplay = playerArray.map(player => `• ${player.name || 'Unknown Player'}`).join('\n');
             } else if (onlineCount > 0 && playerArray.length === 0) {
                 playerListDisplay = "*Player names hidden or Query port disabled in server.properties*";
             }
