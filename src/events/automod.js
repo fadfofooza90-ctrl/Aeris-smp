@@ -38,10 +38,15 @@ export default {
         muteSuccess = false;
       }
 
+      // Convert minutes to a readable hour phrase (e.g., 300 minutes -> 5 Hours)
+      const cleanTimeDisplay = config.muteDurationMinutes >= 60 
+        ? `${config.muteDurationMinutes / 60} Hour(s)` 
+        : `${config.muteDurationMinutes} Minute(s)`;
+
       const logChannel = message.client.channels.cache.get(config.logChannelId);
       if (logChannel) {
         const muteStatusText = muteSuccess 
-          ? `and has been muted for ${config.muteDurationMinutes}m ⏳` 
+          ? `and has been muted for ${cleanTimeDisplay} ⏳` 
           : "(Failed to mute - check hierarchy permissions)";
           
         await logChannel.send({
@@ -49,8 +54,9 @@ export default {
         }).catch(() => null);
       }
 
+      // Updated warning so users see exactly how many hours they are timed out for
       const warning = await message.channel.send({
-        content: `❌ ${message.author}, That vocabulary or phrase is not permitted. You have been muted.`
+        content: `❌ ${message.author}, That vocabulary or phrase is not permitted. You have been muted for ${cleanTimeDisplay}.`
       }).catch(() => null);
 
       if (warning) {
