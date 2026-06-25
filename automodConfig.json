@@ -1,5 +1,19 @@
 {
   "logChannelId": "1513984222346612805",
-  "muteDurationMinutes": 60,
-  "blockedWords": ["nigger", "kys", "killyourself", "bitch"]
+  "blockedWords": [
+    "nigger",
+    "nigga",
+    "niga",
+    "niger",
+    "fuckass",
+    "mf",
+    "motherfucker",
+    "bitch",
+    "bitches",
+    "dumbfuck",
+    "kys",
+    "killyourself"
+  ],
+  "inviteProtection": true,
+  "aiVisionModeration": true
 }
