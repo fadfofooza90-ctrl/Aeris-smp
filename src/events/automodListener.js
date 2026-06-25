@@ -4,20 +4,47 @@ import path from 'path';
 
 const configPath = path.resolve('./automodConfig.json');
 
+// The new expanded default list including bypass roots
+const DEFAULT_WORDS = [
+    "nigger", "nigga", "niga", "niger", 
+    "fuckass", "mf", "motherfucker", 
+    "bitch", "bitches", "dumbfuck", 
+    "kys", "killyourself"
+];
+
 function readConfig() {
     try {
-        return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (!config.blockedWords) config.blockedWords = DEFAULT_WORDS;
+        return config;
     } catch {
         return { 
             logChannelId: "1513984222346612805", 
-            blockedWords: ["nigger", "kys", "killyourself", "bitch", "nigga", "nga", "mf", "motherfucker", "dumbfuck", "niga", "nigero", "sex" "bitches"],
+            blockedWords: DEFAULT_WORDS,
             inviteProtection: true,
             aiVisionModeration: true
         };
     }
 }
 
-// Fixed function declaration typo here
+// ─── BYPASS DETECTOR: TEXT NORMALIZATION ENGINE ────────────────────────────
+function normalizeText(text) {
+    return text
+        .toLowerCase()
+        // Convert Leetspeak / Symbols to standard characters
+        .replace(/[0oO]/g, 'o')
+        .replace(/[1iIlL!|]/g, 'i')
+        .replace(/[3eE]/g, 'e')
+        .replace(/[4aA@]/g, 'a')
+        .replace(/[5sS$]/g, 's')
+        .replace(/[7tT+]/g, 't')
+        .replace(/[8bB]/g, 'b')
+        // Strip out all non-letter characters (removes spaces, dots, dashes, etc.)
+        .replace(/[^a-z]/g, '')
+        // Collapse consecutive duplicate letters (e.g., "biiiitch" -> "bitch", "niiiggga" -> "niga")
+        .replace(/(.)\1+/g, '$1');
+}
+
 async function scanImageForNSFW(imageUrl) {
     const SIGHTENGINE_USER = 'YOUR_SIGHTENGINE_USER_ID'; 
     const SIGHTENGINE_SECRET = 'YOUR_SIGHTENGINE_API_SECRET';
@@ -46,16 +73,15 @@ async function scanImageForNSFW(imageUrl) {
 export default {
     name: Events.MessageCreate,
     async execute(message, client) {
-        // 1. Core safety check: Ignore bots and DMs
         if (message.author.bot || !message.guild) return;
 
-        // 2. USER WHITELIST BYPASS
+        // Whitelist Bypass Check
         const whitelistedUsers = ['1008719737825534043', '864871855604498452'];
-        if (whitelistedUsers.includes(message.author.id)) return; // Completely ignores them
+        if (whitelistedUsers.includes(message.author.id)) return;
 
-        // 3. STAFF ROLE BYPASS
         const config = readConfig();
         const allowedRoles = ['1513984221587181637', '1513984221587181636'];
+        
         const isStaff = message.member?.roles.cache.some(role => allowedRoles.includes(role.id));
         if (isStaff) return;
 
@@ -120,15 +146,20 @@ export default {
             }
         }
 
-        // ─── VECTOR 3: STANDARD WORD BLACKLIST ─────────────────────────────
-        const messageLower = message.content.toLowerCase();
-        const hasBlockedWord = config.blockedWords.some(word => messageLower.includes(word));
+        // ─── VECTOR 3: ADVANCED WORD BLACKLIST WITH BYPASS SCANNING ─────────
+        const normalizedMessage = normalizeText(message.content);
+        
+        const hasBlockedWord = config.blockedWords.some(word => {
+            const normalizedWord = normalizeText(word);
+            return normalizedMessage.includes(normalizedWord);
+        });
         
         if (hasBlockedWord) {
             await message.delete().catch(() => null);
-            await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase.').catch(() => null);
+            // Kept at 2 hours timeout for regular word matching per dashboard spec
+            await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase (or bypass attempt).').catch(() => null);
 
-            const warnMsg = await message.channel.send(`❌ ${message.author}, that phrase is banned in this server.`);
+            const warnMsg = await message.channel.send(`❌ ${message.author}, that phrase (or a variation of it) is banned in this server.`);
             setTimeout(() => warnMsg.delete().catch(() => null), 5000);
 
             if (logChannel) {
@@ -138,7 +169,8 @@ export default {
                     .addFields(
                         { name: '👤 User', value: `${message.author}`, inline: true },
                         { name: '⏱️ Action Taken', value: '2 Hours Mute', inline: true },
-                        { name: '📄 Message Context', value: `\`\`\`${message.content}\`\`\`` }
+                        { name: '📄 Original Message', value: `\`\`\`${message.content}\`\`\`` },
+                        { name: '⚙️ Normalized Clean Text', value: `\`${normalizedMessage}\`` }
                     )
                     .setTimestamp();
                 await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
