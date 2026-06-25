@@ -18,7 +18,13 @@ function readConfig() {
     try {
         return JSON.parse(fs.readFileSync(configPath, 'utf8'));
     } catch {
-        return { logChannelId: "1513984222346612805", blockedWords: ["nigger", "kys", "killyourself", "bitch"] };
+        // Default structure supporting the new background features
+        return { 
+            logChannelId: "1513984222346612805", 
+            blockedWords: ["nigger", "kys", "killyourself", "bitch"],
+            inviteProtection: true,
+            aiVisionModeration: true
+        };
     }
 }
 
@@ -55,6 +61,10 @@ export default {
         if (subcommand === 'dashboard') {
             const currentConfig = readConfig();
 
+            // Safeguard against missing fields if loading an older JSON file
+            if (currentConfig.inviteProtection === undefined) currentConfig.inviteProtection = true;
+            if (currentConfig.aiVisionModeration === undefined) currentConfig.aiVisionModeration = true;
+
             const generateEmbed = (config) => {
                 return new EmbedBuilder()
                     .setTitle('🛡️ AutoMod Configuration Dashboard')
@@ -63,8 +73,10 @@ export default {
                     .addFields(
                         { name: '🟢 System Status', value: '> Active & Filtering', inline: true },
                         { name: '📺 Log Target Channel', value: `> <#${config.logChannelId}>`, inline: true },
-                        { name: '⏱️ Action Penalty', value: `> \`2 Hours Timeout\``, inline: false },
-                        { name: '📋 Blacklisted Target Strings', value: config.blockedWords.map(word => `• \`${word}\``).join('\n'), inline: false }
+                        { name: '🔗 Link Filter', value: config.inviteProtection ? '> `Enabled (30m Mute)`' : '> `Disabled`', inline: true },
+                        { name: '🧠 AI Vision Filtering', value: config.aiVisionModeration ? '> `Active (NSFW Scan)`' : '> `Disabled`', inline: true },
+                        { name: '⏱️ Word Match Penalty', value: `> \`2 Hours Timeout\``, inline: true },
+                        { name: '📋 Blacklisted Target Strings', value: config.blockedWords.map(word => `• \`${word}\``).join('\n') || 'None', inline: false }
                     )
                     .setFooter({ text: 'Flow SMP Security Panel' })
                     .setTimestamp();
