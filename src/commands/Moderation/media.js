@@ -7,13 +7,11 @@ import {
 import { createEmbed } from '../../utils/embeds.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-
 export default {
   data: new SlashCommandBuilder()
     .setName('media')
     .setDescription('View requirements and submit your credentials for the Media Rank'),
   category: 'Moderation',
-
   async execute(interaction, config, client) {
     try {
       const row = new ActionRowBuilder().addComponents(
@@ -22,7 +20,6 @@ export default {
           .setLabel('Check Requirements & Apply')
           .setStyle(ButtonStyle.Success)
       );
-
       const reqsEmbed = createEmbed()
         .setTitle('🎥 Infuse-SMP | Media Team Application')
         .setColor('#2ECC71')
@@ -35,40 +32,33 @@ export default {
         )
         .setFooter({ text: 'Infuse-SMP Media Administration' })
         .setTimestamp();
-
       await interaction.reply({
         embeds: [reqsEmbed],
         components: [row]
       });
-
     } catch (error) {
-      await handleInteractionError(error, interaction);
+      await handleInteractionError(interaction, error);
     }
   }
 };
-
 // ─── STAGE TWO: INTERACTION SUBMIT CONTROLLER ────────────────────────────────
 export async function handleMediaModalSubmit(interaction, client) {
   try {
     const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
     if (!deferSuccess) return;
-
     const tiktokProfile = interaction.fields.getTextInputValue('modal_tiktok_profile');
     const tiktokVideo = interaction.fields.getTextInputValue('modal_tiktok_video');
     const mcName = interaction.fields.getTextInputValue('modal_mc_name');
     const discordName = interaction.fields.getTextInputValue('modal_discord_name');
-
     // Link structural check validations
     if (!tiktokProfile.includes('tiktok.com') || !tiktokVideo.includes('tiktok.com')) {
       return await interaction.editReply({
         content: '❌ **Submission Error:** Please supply valid, complete TikTok profile and video hyperlinks.'
       });
     }
-
     // Direct staff routing log channel destination
     const staffReviewChannelId = '1513984222346612806'; 
     const reviewChannel = client.channels.cache.get(staffReviewChannelId);
-
     if (reviewChannel) {
       const { EmbedBuilder } = await import('discord.js');
       const reviewEmbed = new EmbedBuilder()
@@ -83,19 +73,12 @@ export async function handleMediaModalSubmit(interaction, client) {
         )
         .setDescription('⚠️ **Staff Notice:** Run manually directed account audits to confirm they possess **10+ videos with 200+ views each** before processing rank flags.')
         .setTimestamp();
-
       await reviewChannel.send({ embeds: [reviewEmbed] }).catch(() => null);
     }
-
     await interaction.editReply({
       content: '✅ **Verification Pending!** Your channels have been routed to staff files for active data view metrics confirmation.'
     });
-
   } catch (error) {
-    if (typeof handleInteractionError === 'function') {
-      await handleInteractionError(error, interaction);
-    } else {
-      console.error(error);
-    }
+    await handleInteractionError(interaction, error);
   }
 }
