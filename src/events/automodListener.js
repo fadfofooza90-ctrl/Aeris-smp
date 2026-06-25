@@ -10,14 +10,15 @@ function readConfig() {
     } catch {
         return { 
             logChannelId: "1513984222346612805", 
-            blockedWords: ["nigger", "kys", "killyourself", "bitch"],
+            blockedWords: ["nigger", "kys", "killyourself", "bitch", "nigga", "nga", "mf", "motherfucker", "dumbfuck", "niga", "nigero", "sex" "bitches"],
             inviteProtection: true,
             aiVisionModeration: true
         };
     }
 }
 
-async scanImageForNSFW(imageUrl) {
+// Fixed function declaration typo here
+async function scanImageForNSFW(imageUrl) {
     const SIGHTENGINE_USER = 'YOUR_SIGHTENGINE_USER_ID'; 
     const SIGHTENGINE_SECRET = 'YOUR_SIGHTENGINE_API_SECRET';
 
@@ -43,13 +44,18 @@ async scanImageForNSFW(imageUrl) {
 }
 
 export default {
-    name: Events.MessageCreate, // Tells the handler to run this on every message sent
+    name: Events.MessageCreate,
     async execute(message, client) {
+        // 1. Core safety check: Ignore bots and DMs
         if (message.author.bot || !message.guild) return;
 
+        // 2. USER WHITELIST BYPASS
+        const whitelistedUsers = ['1008719737825534043', '864871855604498452'];
+        if (whitelistedUsers.includes(message.author.id)) return; // Completely ignores them
+
+        // 3. STAFF ROLE BYPASS
         const config = readConfig();
         const allowedRoles = ['1513984221587181637', '1513984221587181636'];
-        
         const isStaff = message.member?.roles.cache.some(role => allowedRoles.includes(role.id));
         if (isStaff) return;
 
