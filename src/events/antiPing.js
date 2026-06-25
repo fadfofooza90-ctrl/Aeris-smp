@@ -18,7 +18,10 @@ export default {
       "1008719737825534043"
     ];
 
-    // Check if any of the protected IDs were mentioned
+    // 👑 BYPASS CHECK: If either of these 2 users sent the message, they can ping ANYONE unrestricted
+    if (protectedUsers.includes(message.author.id)) return;
+
+    // Check if any of the protected IDs were mentioned by a regular user
     const triggeredPing = protectedUsers.find(id => message.mentions.users.has(id));
 
     if (triggeredPing) {
