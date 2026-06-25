@@ -1,99 +1,264 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { createEmbed } from '../../utils/embeds.js';
+import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
-  data: new SlashCommandBuilder()
-    .setName("issue")
-    .setDescription("Report a user infraction or server issue to management")
-    .addStringOption(option =>
-      option.setName("type")
-        .setDescription("Select the type of issue action")
-        .setRequired(true)
-        .addChoices(
-          { name: "⚠️ Warn", value: "warn" },
-          { name: "⏳ Timeout", value: "timeout" },
-          { name: "🔨 Ban", value: "ban" }
+    data: new SlashCommandBuilder()
+        .setName('issue')
+        .setDescription('Issue a network or server moderation action')
+        .setDMPermission(false)
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+        // --- BAN SUBCOMMAND ---
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('ban')
+                .setDescription('Log a player ban')
+                .addStringOption(option =>
+                    option.setName('minecraft_username')
+                        .setDescription('The Minecraft IGN of the player')
+                        .setRequired(true)
+                )
+                .addStringOption(option =>
+                    option.setName('duration')
+                        .setDescription('Type "permanent" or enter minutes (e.g., 30 for 30 minutes)')
+                        .setRequired(true)
+                )
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for issuing this ban')
+                        .setRequired(true)
+                )
+                .addUserOption(option =>
+                    option.setName('discord_user')
+                        .setDescription('The linked Discord user account (optional)')
+                        .setRequired(false)
+                )
         )
-    )
-    .addUserOption(option =>
-      option.setName("user")
-        .setDescription("The user this issue/action relates to")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName("reason")
-        .setDescription("Reason or details regarding this issue")
-        .setRequired(true)
-    )
-    .addAttachmentOption(option =>
-      option.setName("proof")
-        .setDescription("Upload mandatory proof (Photo or Video file)")
-        .setRequired(true)
-    ),
+        // --- TIMEOUT SUBCOMMAND ---
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('timeout')
+                .setDescription('Log a player mute/timeout')
+                .addStringOption(option =>
+                    option.setName('minecraft_username')
+                        .setDescription('The Minecraft IGN of the player')
+                        .setRequired(true)
+                )
+                .addIntegerOption(option =>
+                    option.setName('duration_minutes')
+                        .setDescription('How many minutes should the timeout last? (Will count down live)')
+                        .setRequired(true)
+                )
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for issuing this timeout')
+                        .setRequired(true)
+                )
+                .addUserOption(option =>
+                    option.setName('discord_user')
+                        .setDescription('The linked Discord user account (optional)')
+                        .setRequired(false)
+                )
+        )
+        // --- WARN SUBCOMMAND ---
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('warn')
+                .setDescription('Warn a Discord user and manage warning roles')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The Discord user to warn')
+                        .setRequired(true)
+                )
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for issuing this warning')
+                        .setRequired(true)
+                )
+        ),
+    category: "Moderation",
 
-  async execute(interaction) {
-    // Immediate safe defer to keep things responsive
-    await interaction.deferReply({ ephemeral: true }).catch(() => null);
+    async execute(interaction, config, client) {
+        try {
+            const deferSuccess = await InteractionHelper.safeDefer(interaction);
+            if (!deferSuccess) return;
 
-    const issueType = interaction.options.getString("type");
-    const targetUser = interaction.options.getUser("user");
-    const reason = interaction.options.getString("reason");
-    const proofAttachment = interaction.options.getAttachment("proof");
+            const subcommand = interaction.options.getSubcommand();
+            const moderator = interaction.user;
+            const guild = interaction.guild;
+            const channelId = interaction.channelId;
 
-    const contentType = proofAttachment.contentType || "";
-    const isImage = contentType.startsWith("image/");
-    const isVideo = contentType.startsWith("video/");
+            const logFeedChannelId = '1513984222346612805';
+            const staffAlertChannelId = '1513984222346612806';
 
-    if (!isImage && !isVideo) {
-      return await interaction.editReply({
-        content: "❌ **Invalid Proof Format:** Please upload a valid photo image (PNG/JPG) or video file (MP4/MOV/WebM)."
-      }).catch(() => null);
+            // Direct URL link bypasses upload arrays completely
+            const directImageUrl = 'https://images.wallpapersden.com/image/download/landscape-minecraft-shaders_bWltaGWZm35urWdnamVreW1lZmhpaWc.jpg';
+
+            // --- PROCESS BAN SUBCOMMAND ---
+            if (subcommand === 'ban') {
+                const mcUsername = interaction.options.getString('minecraft_username');
+                const reason = interaction.options.getString('reason');
+                const discordUser = interaction.options.getUser('discord_user');
+                const durationInput = interaction.options.getString('duration').trim();
+
+                const targetMentionOrUsername = discordUser ? `${discordUser}` : `@${mcUsername}`;
+                const discordUserValue = discordUser ? `${discordUser}` : 'Not Provided';
+
+                let displayDuration = durationInput;
+                const minutes = parseInt(durationInput, 10);
+
+                if (!isNaN(minutes)) {
+                    const expiryTimestamp = Math.floor((Date.now() + minutes * 60 * 1000) / 1000);
+                    displayDuration = `<t:${expiryTimestamp}:R>`;
+
+                    setTimeout(async () => {
+                        const targetChannel = client.channels.cache.get(channelId);
+                        if (targetChannel) {
+                            await targetChannel.send({
+                                content: `🔔 ${moderator}, the **${minutes} minute ban** duration for **${mcUsername}** is now over!`
+                            }).catch(() => null);
+                        }
+                    }, minutes * 60 * 1000);
+                }
+
+                const logEmbed = createEmbed()
+                    .setColor('#8B0000') // Dark Red
+                    .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
+                    .setTitle('Moderation Log: Ban')
+                    .setImage(directImageUrl) // Load directly from the web URL string
+                    .setFooter({ text: `Moderator ID: ${moderator.id}` })
+                    .setTimestamp()
+                    .addFields(
+                        { name: 'Discord User', value: `> ${discordUserValue}`, inline: false },
+                        { name: 'Minecraft Username', value: `> ${mcUsername}`, inline: true },
+                        { name: 'Duration', value: `> ${displayDuration}`, inline: true },
+                        { name: 'Reason', value: `> ${reason}`, inline: true }
+                    );
+
+                await interaction.editReply({ embeds: [logEmbed] });
+
+                const logFeedChannel = client.channels.cache.get(logFeedChannelId);
+                if (logFeedChannel) {
+                    await logFeedChannel.send({
+                        content: `🔨 ${targetMentionOrUsername} has been banned by ${moderator} **${reason}** **${durationInput}**`
+                    }).catch(() => null);
+                }
+            }
+
+            // --- PROCESS TIMEOUT SUBCOMMAND ---
+            else if (subcommand === 'timeout') {
+                const mcUsername = interaction.options.getString('minecraft_username');
+                const reason = interaction.options.getString('reason');
+                const discordUser = interaction.options.getUser('discord_user');
+                const durationMinutes = interaction.options.getInteger('duration_minutes');
+
+                const targetMentionOrUsername = discordUser ? `${discordUser}` : `@${mcUsername}`;
+                const discordUserValue = discordUser ? `${discordUser}` : 'Not Provided';
+                const expiryTimestamp = Math.floor((Date.now() + durationMinutes * 60 * 1000) / 1000);
+                const liveCountdownString = `<t:${expiryTimestamp}:R>`;
+
+                const logEmbed = createEmbed()
+                    .setColor('#8B0000') // Dark Red
+                    .setAuthor({ name: `Issued by ${moderator.username}`, iconURL: moderator.displayAvatarURL({ dynamic: true }) })
+                    .setTitle('Moderation Log: Timeout')
+                    .setImage(directImageUrl) // Load directly from the web URL string
+                    .setFooter({ text: `Moderator ID: ${moderator.id}` })
+                    .setTimestamp()
+                    .addFields(
+                        { name: 'Discord User', value: `> ${discordUserValue}`, inline: false },
+                        { name: 'Minecraft Username', value: `> ${mcUsername}`, inline: true },
+                        { name: 'Duration', value: `> ${liveCountdownString}`, inline: true },
+                        { name: 'Reason', value: `> ${reason}`, inline: true }
+                    );
+
+                await interaction.editReply({ embeds: [logEmbed] });
+
+                const logFeedChannel = client.channels.cache.get(logFeedChannelId);
+                if (logFeedChannel) {
+                    await logFeedChannel.send({
+                        content: `⏳ ${targetMentionOrUsername} has been muted by ${moderator} **${reason}** **${durationMinutes}m**`
+                    }).catch(() => null);
+                }
+
+                setTimeout(async () => {
+                    const targetChannel = client.channels.cache.get(channelId);
+                    if (targetChannel) {
+                        await targetChannel.send({
+                            content: `🔔 ${moderator}, the **${durationMinutes} minute timeout** duration for **${mcUsername}** is now over!`
+                        }).catch(() => null);
+                    }
+                }, durationMinutes * 60 * 1000);
+            }
+
+            // --- PROCESS WARN SUBCOMMAND ---
+            else if (subcommand === 'warn') {
+                const discordUser = interaction.options.getUser('user');
+                const reason = interaction.options.getString('reason');
+
+                const allRoles = await guild.roles.fetch();
+                const warn1 = allRoles.find(r => r.name === '1 warnings');
+                const warn2 = allRoles.find(r => r.name === '2 warnings');
+                const warn3 = allRoles.find(r => r.name === '3 warnings');
+                const staffRole = allRoles.find(r => r.name === 'Staff');
+
+                if (!warn1 || !warn2 || !warn3) {
+                    return await interaction.editReply({
+                        content: `❌ **Setup Error:** Missing warning roles. Ensure you have '1 warnings', '2 warnings', and '3 warnings'.`
+                    });
+                }
+
+                const member = await guild.members.fetch(discordUser.id).catch(() => null);
+                let nextWarnLevel = 1;
+
+                if (member) {
+                    let currentWarnLevel = 0;
+                    if (member.roles.cache.has(warn3.id)) currentWarnLevel = 3;
+                    else if (member.roles.cache.has(warn2.id)) currentWarnLevel = 2;
+                    else if (member.roles.cache.has(warn1.id)) currentWarnLevel = 1;
+
+                    nextWarnLevel = currentWarnLevel + 1;
+
+                    if (nextWarnLevel === 1) {
+                        await member.roles.add(warn1).catch(() => null);
+                    } else if (nextWarnLevel === 2) {
+                        await member.roles.remove(warn1).catch(() => null);
+                        await member.roles.add(warn2).catch(() => null);
+                    } else if (nextWarnLevel >= 3) {
+                        nextWarnLevel = 3;
+                        await member.roles.remove(warn2).catch(() => null);
+                        await member.roles.add(warn3).catch(() => null);
+
+                        const staffChatChannel = client.channels.cache.get(staffAlertChannelId);
+                        if (staffChatChannel) {
+                            const staffMention = staffRole ? `${staffRole}` : '@Staff';
+                            await staffChatChannel.send({
+                                content: `⚠️ **Attention** ${staffMention}, ${discordUser} has 3 warnings now take action!`
+                            }).catch(() => null);
+                        }
+                    }
+                }
+
+                const logEmbed = createEmbed()
+                    .setColor('#2ECC71')
+                    .setDescription(
+                        `**Warned** ${discordUser}\n\n` +
+                        `**Reason:** ${reason}\n` +
+                        `**Total Warns:** ${nextWarnLevel}`
+                    );
+
+                await interaction.editReply({ embeds: [logEmbed] });
+
+                const logFeedChannel = client.channels.cache.get(logFeedChannelId);
+                if (logFeedChannel) {
+                    await logFeedChannel.send({
+                        content: `⚠️ ${discordUser} has been warned by ${moderator} **${reason}**`
+                    }).catch(() => null);
+                }
+            }
+
+        } catch (error) {
+            await handleInteractionError(error, interaction);
+        }
     }
-
-    // FIXED: Directly forced to your specific channel destination ID for maximum performance speed
-    const targetChannelId = "1513984222346612804";
-    const logChannel = interaction.guild.channels.cache.get(targetChannelId);
-    
-    if (!logChannel) {
-      return await interaction.editReply({
-        content: "❌ **Configuration Error:** The specified destination channel could not be found."
-      }).catch(() => null);
-    }
-
-    let actionLabel = "⚠️ Issue Report: Warning Request";
-    let embedColor = 0xFFAA00; 
-
-    if (issueType === "timeout") {
-      actionLabel = "⏳ Issue Report: Timeout Request";
-      embedColor = 0x3498DB; 
-    } else if (issueType === "ban") {
-      actionLabel = "🔨 Issue Report: Ban Request";
-      embedColor = 0xE74C3C; 
-    }
-
-    const issueEmbed = new EmbedBuilder()
-      .setTitle(actionLabel)
-      .setColor(embedColor)
-      .addFields(
-        { name: "👤 Target User", value: `${targetUser} (\`${targetUser.id}\`)`, inline: true },
-        { name: "✍️ Filed By", value: `${interaction.user} (\`${interaction.user.id}\`)`, inline: true },
-        { name: "📝 Details / Reason", value: reason }
-      )
-      .setTimestamp();
-
-    if (isImage) {
-      issueEmbed.setImage(proofAttachment.url);
-    } else if (isVideo) {
-      issueEmbed.addFields({ name: "🎬 Video Proof", value: `[Click here to jump straight to file attachment](${proofAttachment.url})` });
-    }
-
-    // Dispatches layout straight to your requested channel feed
-    await logChannel.send({
-      embeds: [issueEmbed],
-      content: isVideo ? `🎬 **Attached Video Evidence:** ${proofAttachment.url}` : null
-    }).catch(() => null);
-
-    await interaction.editReply({
-      content: `✅ Success! Your **${issueType}** issue profile regarding ${targetUser.tag} has been logged.`
-    }).catch(() => null);
-  }
 };
