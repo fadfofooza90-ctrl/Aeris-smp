@@ -3,8 +3,7 @@ import { logger } from '../utils/logger.js';
 import { getGuildConfig } from '../services/guildConfig.js';
 import { handleApplicationModal } from '../commands/Community/apply.js';
 import { handleApplicationReviewModal } from '../commands/Community/app-admin.js';
-import { handleMediaModalSubmit } from '../commands/moderation/media.js'; // 🎥 Media Form Submission Hook
-
+import { handleMediaModalSubmit } from '../commands/Moderation/media.js'; // 🎥 Media Form Submission Hook
 import { handleInteractionError, createError, ErrorTypes } from '../utils/errorHandler.js';
 import { MessageTemplates } from '../utils/messageTemplates.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
@@ -15,7 +14,6 @@ import { isCommandEnabled } from '../services/commandAccessService.js';
 import { resolveSlashAccessKey } from '../utils/messageAdapter.js';
 import { isCollectorManagedComponent } from '../utils/collectorComponents.js';
 import { ResponseCoordinator } from '../utils/responseCoordinator.js';
-
 function withTraceContext(context = {}, traceContext = {}) {
   return {
     traceId: traceContext.traceId,
@@ -25,19 +23,16 @@ function withTraceContext(context = {}, traceContext = {}) {
     ...context
   };
 }
-
 export default {
   name: Events.InteractionCreate,
   async execute(interaction, client) {
     const interactionTraceContext = createInteractionTraceContext(interaction);
     interaction.traceContext = interactionTraceContext;
     interaction.traceId = interactionTraceContext.traceId;
-
     return runWithTraceContext(interactionTraceContext, async () => {
       try {
         InteractionHelper.patchInteractionResponses(interaction);
         ResponseCoordinator.attach(interaction);
-
         // ─── 1. CHAT INPUT COMMAND HANDLER ───────────────────────────────────
         if (interaction.isChatInputCommand()) {
           try {
@@ -48,14 +43,11 @@ export default {
               userId: interaction.user?.id,
               command: interaction.commandName
             });
-
             validateChatInputPayloadOrThrow(interaction, withTraceContext({
               type: 'command_input_validation',
               commandName: interaction.commandName
             }, interactionTraceContext));
-
             const command = client.commands.get(interaction.commandName);
-
             if (!command) {
               throw createError(
                 `No command matching ${interaction.commandName} was found.`,
@@ -64,7 +56,6 @@ export default {
                 withTraceContext({ commandName: interaction.commandName }, interactionTraceContext)
               );
             }
-
             const abuseProtection = await enforceAbuseProtection(interaction, command, interaction.commandName);
             if (!abuseProtection.allowed) {
               const formattedCooldown = formatCooldownDuration(abuseProtection.remainingMs);
@@ -82,7 +73,6 @@ export default {
                 }, interactionTraceContext)
               );
             }
-
             let guildConfig = null;
             if (interaction.guild) {
               guildConfig = await getGuildConfig(client, interaction.guild.id, interactionTraceContext);
@@ -96,7 +86,6 @@ export default {
                 );
               }
             }
-
             await command.execute(interaction, guildConfig, client);
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
@@ -122,7 +111,6 @@ export default {
             }
             return;
           }
-
           const focusedOption = interaction.options.getFocused(true);
           
           if (interaction.commandName === 'apply' && focusedOption.name === 'application') {
@@ -130,7 +118,6 @@ export default {
               const { getApplicationRoles } = await import('../utils/database.js');
               const roles = await getApplicationRoles(client, interaction.guildId);
               const roleName = interaction.options.getString('application', false);
-
               const filtered = roles.filter(role =>
                 role.enabled !== false && 
                 role.name.toLowerCase().startsWith(roleName?.toLowerCase() || '')
@@ -155,7 +142,6 @@ export default {
               const { getApplicationRoles } = await import('../utils/database.js');
               const roles = await getApplicationRoles(client, interaction.guildId);
               const appName = interaction.options.getString('application', false);
-
               const filtered = roles.filter(role =>
                 role.name.toLowerCase().startsWith(appName?.toLowerCase() || '')
               );
@@ -186,7 +172,6 @@ export default {
                 await interaction.respond([]);
                 return;
               }
-
               const validPanels = [];
               for (const panel of panels) {
                 if (!panel.messageId || !panel.channelId) {
@@ -257,42 +242,36 @@ export default {
               const modal = new ModalBuilder()
                 .setCustomId('media_app_modal')
                 .setTitle('Media Rank Verification Form');
-
               const profileInput = new TextInputBuilder()
                 .setCustomId('modal_tiktok_profile')
                 .setLabel('Your TikTok Profile Link')
                 .setPlaceholder('https://www.tiktok.com/@yourusername')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
-
               const videoInput = new TextInputBuilder()
                 .setCustomId('modal_tiktok_video')
                 .setLabel('Your Video Link')
                 .setPlaceholder('https://www.tiktok.com/@username/video/...')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
-
               const mcInput = new TextInputBuilder()
                 .setCustomId('modal_mc_name')
                 .setLabel('Your Minecraft Name (IGN)')
                 .setPlaceholder('Enter your exact in-game name')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
-
               const discordInput = new TextInputBuilder()
                 .setCustomId('modal_discord_name')
                 .setLabel('Your Discord Name')
                 .setDefaultValue(interaction.user.username)
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
-
               modal.addComponents(
                 new ActionRowBuilder().addComponents(profileInput),
                 new ActionRowBuilder().addComponents(videoInput),
                 new ActionRowBuilder().addComponents(mcInput),
                 new ActionRowBuilder().addComponents(discordInput)
               );
-
               await interaction.showModal(modal);
               return; // Prevent execution layout fallthrough
             } catch (error) {
@@ -304,13 +283,11 @@ export default {
               return;
             }
           }
-
           if (interaction.customId.startsWith('shared_todo_')) {
             const parts = interaction.customId.split('_');
             const buttonType = parts.slice(0, 3).join('_');
             const listId = parts[3];
             const button = client.buttons.get(buttonType);
-
             if (button) {
               try {
                 await button.execute(interaction, client, [listId]);
@@ -331,15 +308,12 @@ export default {
             }
             return;
           }
-
           const [customId, ...args] = interaction.customId.split(':');
           const button = client.buttons.get(customId);
-
           if (!button) {
             if (!interaction.customId.includes(':') || isCollectorManagedComponent(customId)) {
               return;
             }
-
             throw createError(
               `No button handler found for ${customId}`,
               ErrorTypes.CONFIGURATION,
@@ -347,7 +321,6 @@ export default {
               withTraceContext({ customId }, interactionTraceContext)
             );
           }
-
           try {
             await button.execute(interaction, client, args);
           } catch (error) {
@@ -363,12 +336,10 @@ export default {
         else if (interaction.isStringSelectMenu()) {
           const [customId, ...args] = interaction.customId.split(':');
           const selectMenu = client.selectMenus.get(customId);
-
           if (!selectMenu) {
             if (!interaction.customId.includes(':') || isCollectorManagedComponent(customId)) {
               return;
             }
-
             throw createError(
               `No select menu handler found for ${customId}`,
               ErrorTypes.CONFIGURATION,
@@ -376,7 +347,6 @@ export default {
               withTraceContext({ customId }, interactionTraceContext)
             );
           }
-
           try {
             await selectMenu.execute(interaction, client, args);
           } catch (error) {
@@ -402,7 +372,6 @@ export default {
             }
             return;
           }
-
           if (interaction.customId.startsWith('app_modal_')) {
             try {
               await handleApplicationModal(interaction);
@@ -415,7 +384,6 @@ export default {
             }
             return;
           }
-
           if (interaction.customId.startsWith('app_review_')) {
             try {
               await handleApplicationReviewModal(interaction);
@@ -428,7 +396,6 @@ export default {
             }
             return;
           }
-
           if (interaction.customId.startsWith('jtc_') || interaction.customId.startsWith('config_wizard_modal:')) {
             logger.debug(`Skipping modal handler lookup for inline-awaited modal: ${interaction.customId}`, {
               event: 'interaction.modal.inline_skipped',
@@ -436,15 +403,12 @@ export default {
             });
             return;
           }
-
           const [customId, ...args] = interaction.customId.split(':');
           const modal = client.modals.get(customId);
-
           if (!modal) {
             if (!interaction.customId.includes(':')) {
               return;
             }
-
             throw createError(
               `No modal handler found for ${customId}`,
               ErrorTypes.CONFIGURATION,
@@ -452,7 +416,6 @@ export default {
               withTraceContext({ customId }, interactionTraceContext)
             );
           }
-
           try {
             await modal.execute(interaction, client, args);
           } catch (error) {
@@ -473,7 +436,6 @@ export default {
           guildId: interaction.guildId,
           userId: interaction.user?.id
         });
-
         try {
           const ephemeralErrorMessage = {
             embeds: [MessageTemplates.ERRORS.DATABASE_ERROR('processing your interaction')],
@@ -482,7 +444,6 @@ export default {
           const editErrorMessage = {
             embeds: [MessageTemplates.ERRORS.DATABASE_ERROR('processing your interaction')]
           };
-
           if (interaction.deferred) {
             await interaction.editReply(editErrorMessage);
           } else if (interaction.replied) {
