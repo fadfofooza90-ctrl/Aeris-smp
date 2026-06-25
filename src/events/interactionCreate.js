@@ -272,14 +272,27 @@ export default {
                 new ActionRowBuilder().addComponents(mcInput),
                 new ActionRowBuilder().addComponents(discordInput)
               );
+              
+              // Validate modal before showing
+              if (!modal || !modal.data) {
+                throw new Error('Modal construction failed - invalid modal data');
+              }
+              
               await interaction.showModal(modal);
               return; // Prevent execution layout fallthrough
             } catch (error) {
-              await handleInteractionError(interaction, error, withTraceContext({
-                type: 'button',
-                customId: interaction.customId,
-                handler: 'media_button_display'
-              }, interactionTraceContext));
+              logger.error('Error showing media modal:', {
+                event: 'media_button.modal_show_failed',
+                errorMessage: error.message,
+                errorCode: error.code,
+                traceId: interactionTraceContext.traceId,
+                userId: interaction.user?.id,
+                guildId: interaction.guildId
+              });
+              await interaction.reply({
+                content: '❌ **Error:** Could not open the application form. Please try again in a moment.',
+                flags: MessageFlags.Ephemeral
+              }).catch(() => null);
               return;
             }
           }
@@ -364,6 +377,14 @@ export default {
             try {
               await handleMediaModalSubmit(interaction, client);
             } catch (error) {
+              logger.error('Error handling media modal submission:', {
+                event: 'media_modal.submission_failed',
+                errorMessage: error.message,
+                errorCode: error.code,
+                traceId: interactionTraceContext.traceId,
+                userId: interaction.user?.id,
+                guildId: interaction.guildId
+              });
               await handleInteractionError(interaction, error, withTraceContext({
                 type: 'modal',
                 customId: interaction.customId,
