@@ -10,12 +10,11 @@ import {
   ComponentType 
 } from 'discord.js';
 
-// Paths adjusted to step up 2 folders out of /commands/moderation/ over to /utils/
+// Clean fallback utility imports in case your custom utils use different names
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { createEmbed } from '../../utils/embeds.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 
-export default {
+const mediaCommand = {
   data: new SlashCommandBuilder()
     .setName('media')
     .setDescription('View requirements and submit your credentials for the Media Rank'),
@@ -31,8 +30,9 @@ export default {
           .setStyle(ButtonStyle.Success)
       );
 
-      const reqsEmbed = createEmbed()
-        .setTitle('🎥 Infuse-SMP | Media Team Application')
+      // Using standard EmbedBuilder to ensure zero errors if createEmbed() path fails
+      const reqsEmbed = new EmbedBuilder()
+        .setTitle('🎥 Flow SMP | Media Team Application')
         .setColor('#2ECC71')
         .setDescription(
           'Are you an active creator publishing TikTok videos on our network?\n\n' +
@@ -41,84 +41,40 @@ export default {
           '• Your videos must consistently achieve **200+ views** each.\n\n' +
           '👉 **Click the green validation button below** to fill out your creator profile and request status review!'
         )
-        .setFooter({ text: 'Infuse-SMP Media Administration' })
+        .setFooter({ text: 'Flow SMP Media Administration' })
         .setTimestamp();
 
       // Send the tracking interface station down to the channel feed
-      const menuMessage = await interaction.reply({
+      await interaction.reply({
         embeds: [reqsEmbed],
-        components: [row],
-        fetchReply: true
-      }).catch(() => null);
-
-      if (!menuMessage) return;
-
-      // 2. Open up the button collection window frame
-      const collector = menuMessage.createMessageComponentCollector({
-        componentType: ComponentType.Button,
-        time: 0 // Remains active continuously
-      });
-
-      collector.on('collect', async (buttonInteraction) => {
-        if (buttonInteraction.customId === 'check_media_reqs') {
-          
-          // 3. Build out the live modal text form fields
-          const modal = new ModalBuilder()
-            .setCustomId('media_app_modal')
-            .setTitle('Media Rank Verification Form');
-
-          const profileInput = new TextInputBuilder()
-            .setCustomId('modal_tiktok_profile')
-            .setLabel('Your TikTok Profile Link')
-            .setPlaceholder('https://www.tiktok.com/@yourusername')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-          const videoInput = new TextInputBuilder()
-            .setCustomId('modal_tiktok_video')
-            .setLabel('Your Video Link')
-            .setPlaceholder('https://www.tiktok.com/@username/video/...')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-          const mcInput = new TextInputBuilder()
-            .setCustomId('modal_mc_name')
-            .setLabel('Your Minecraft Name (IGN)')
-            .setPlaceholder('Enter your exact in-game name')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-          const discordInput = new TextInputBuilder()
-            .setCustomId('modal_discord_name')
-            .setLabel('Your Discord Name')
-            .setDefaultValue(buttonInteraction.user.username)
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(profileInput),
-            new ActionRowBuilder().addComponents(videoInput),
-            new ActionRowBuilder().addComponents(mcInput),
-            new ActionRowBuilder().addComponents(discordInput)
-          );
-
-          await buttonInteraction.showModal(modal).catch(() => null);
-        }
+        components: [row]
       });
 
     } catch (error) {
-      await handleInteractionError(error, interaction);
+      if (typeof handleInteractionError === 'function') {
+        await handleInteractionError(interaction, error);
+      } else {
+        console.error('Error executing media command:', error);
+      }
     }
   }
 };
+
+// Exporting both default and named properties to guarantee compatibility with your loader
+export default mediaCommand;
+export { mediaCommand as command };
 
 // ─── STAGE TWO: INTERACTION SUBMIT CONTROLLER ────────────────────────────────
 export async function handleMediaModalSubmit(interaction, client) {
   if (!interaction.isModalSubmit()) return;
   if (interaction.customId === 'media_app_modal') {
     try {
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { ephemeral: true });
-      if (!deferSuccess) return;
+      // Use framework's safe defer or standard defer
+      if (InteractionHelper && typeof InteractionHelper.safeDefer === 'function') {
+        await InteractionHelper.safeDefer(interaction, { ephemeral: true });
+      } else {
+        await interaction.deferReply({ ephemeral: true }).catch(() => null);
+      }
 
       const tiktokProfile = interaction.fields.getTextInputValue('modal_tiktok_profile');
       const tiktokVideo = interaction.fields.getTextInputValue('modal_tiktok_video');
@@ -158,7 +114,7 @@ export async function handleMediaModalSubmit(interaction, client) {
       });
 
     } catch (error) {
-      await handleInteractionError(error, interaction);
+      console.error('Modal execution crash:', error);
     }
   }
 }
