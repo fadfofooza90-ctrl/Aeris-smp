@@ -18,11 +18,14 @@ export default {
       "1008719737825534043"
     ];
 
-    // 👑 BYPASS CHECK: If either of these 2 users sent the message, they can ping ANYONE unrestricted
+    // 👑 BYPASS CHECK: Whitelisted users can ping anyone unrestricted
     if (protectedUsers.includes(message.author.id)) return;
 
-    // Check if any of the protected IDs were mentioned by a regular user
-    const triggeredPing = protectedUsers.find(id => message.mentions.users.has(id));
+    // Modified Check: Only triggers if the explicit mention syntax (<@ID> or <@!ID>) is inside the message body text
+    const triggeredPing = protectedUsers.find(id => {
+      const explicitPingRegex = new RegExp(`<@!?${id}>`);
+      return explicitPingRegex.test(message.content);
+    });
 
     if (triggeredPing) {
       // 1. Fire the delete request immediately to block the notification
@@ -37,15 +40,15 @@ export default {
         if (config.logChannelId) logChannelId = config.logChannelId;
       } catch { /* Fallback */ }
 
-      // 3. Dispatch the incident details to the staff feed (Just a deletion log now)
+      // 3. Dispatch the incident details to the staff feed
       const logChannel = message.client.channels.cache.get(logChannelId);
       if (logChannel) {
         await logChannel.send({
-          content: `🗑️ **Anti-Ping Log:** Deleted a message from ${message.author.tag} (${message.author.id}) for pinging a protected staff ID.`
+          content: `🗑️ **Anti-Ping Log:** Deleted a message from ${message.author.tag} (${message.author.id}) for explicitly pinging a protected staff ID.`
         }).catch(() => null);
       }
 
-      // 4. Send the updated self-cleaning warning message without the mute mention
+      // 4. Send the self-cleaning warning message
       const warning = await message.channel.send({
         content: `❌ ${message.author}, You cannot ping this person.`
       }).catch(() => null);
