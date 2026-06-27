@@ -26,7 +26,6 @@ export default {
             errorOccurred = true;
         } else {
             try {
-                // 🚀 Swapped out the old deprecated version for the active gemini-3.5-flash endpoint
                 const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent', {
                     method: 'POST',
                     headers: {
@@ -36,15 +35,20 @@ export default {
                     body: JSON.stringify({
                         contents: [{
                             parts: [{
-                                text: `Context: You are a hilarious, witty Magic 8-Ball inside a competitive Minecraft SMP Discord server named Flow SMP. 
-                                Task: Read the user's question and give a genuinely funny, smart, or accurate answer to it. Deliver the answer using modern gaming community slang or casual chat slang. Keep it short (1 to 2 sentences max). Do not include any filler text.
+                                text: `You are a savage, witty Magic 8-Ball bot inside a competitive Minecraft SMP Discord server named Flow SMP.
+                                A player (or the server owner) is asking you a question. Give a full, hilarious response using modern gaming community slang or casual chat slang (like cooked, real, capping, gng, 💀, we up, valid).
+                                
+                                CRITICAL OUTPUT RULES:
+                                1. You must output a FULL, complete sentence. Never leave it cut off or halfway finished.
+                                2. Do NOT use generic, boring old 8-ball responses like "My sources say no" or "Concentrate and ask again". Act like a real player in the chat.
+                                3. Keep your entire answer between 1 and 2 sentences max.
                                 
                                 User Question: "${question}"`
                             }]
                         }],
                         generationConfig: {
                             maxOutputTokens: 100,
-                            temperature: 0.85
+                            temperature: 0.88
                         }
                     })
                 });
