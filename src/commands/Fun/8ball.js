@@ -1,12 +1,12 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
-// 🧠 Safely grabs the key from your host dashboard without putting it on GitHub
+// Safely grabs the key from your host dashboard environment variables
 const AI_API_KEY = process.env.OPENAI_API_KEY; 
 
 export default {
     data: new SlashCommandBuilder()
         .setName('8ball')
-        .setDescription('Ask the magic 8-ball a question and get a funny, custom AI answer')
+        .setDescription('Ask the magic 8-ball a question and get a custom AI answer')
         .addStringOption(option =>
             option.setName('question')
                 .setDescription('The question you want to ask the 8-ball')
@@ -17,24 +17,17 @@ export default {
     async execute(interaction) {
         const question = interaction.options.getString('question');
 
-        // Funny local fallback responses used if the AI key is missing or out of credits
-        const fallbackResponses = [
-            "buddy im not fucking gpt 🤫",
-            "ts guy thinks i have 100 ram inside my ahh 😭",
-            "Idk gng why u asking me 💀",
-            "It is certain 🟢",
-            "Without a doubt ✅",
-            "Don't count on it, it's over for u 📉",
-            "Bro, absolutely not 🚫"
-        ];
+        // Defer the reply immediately since AI generation takes a brief moment
+        await interaction.deferReply();
 
         let finalAnswer = "";
-        let isAiGenerated = false;
+        let errorOccurred = false;
 
-        // If your host successfully passes the environment variable
-        if (AI_API_KEY) {
-            await interaction.deferReply();
-
+        // Check if the environment variable is actually present
+        if (!AI_API_KEY) {
+            finalAnswer = "⚠️ **Error:** The AI API Key is missing from your host panel's environment variables.";
+            errorOccurred = true;
+        } else {
             try {
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
@@ -47,9 +40,9 @@ export default {
                         messages: [
                             { 
                                 role: 'system', 
-                                content: `You are a hilarious, witty Magic 8-Ball inside a competitive Minecraft SMP Discord server. 
-                                A user is going to ask you a question. You must read their question and give a genuinely good, accurate, or smart answer to it, BUT deliver the answer using funny, modern gaming community brainrot or casual slang. 
-                                Feel free to occasionally use phrases like 'buddy im not gpt', 'ts guy thinks I have 100 ram inside my ahh', 'gng', 'cooked', 'we up', 'it is over for u', or '💀' if it fits their question perfectly. Keep the response short (1 to 2 sentences max).`
+                                content: `You are a hilarious, witty Magic 8-Ball inside a competitive Minecraft SMP Discord server named Flow SMP. 
+                                A user is going to ask you a question. Read their question and give a genuinely funny, smart, or accurate answer to it, delivered using modern gaming community slang or casual chat slang. 
+                                Keep the response short (1 to 2 sentences max). Do not use placeholders.`
                             },
                             { role: 'user', content: question }
                         ],
@@ -65,35 +58,30 @@ export default {
                 const data = await response.json();
                 if (data.choices && data.choices[0]?.message?.content) {
                     finalAnswer = data.choices[0].message.content.trim();
-                    isAiGenerated = true;
+                } else {
+                    throw new Error("Invalid response structure from OpenAI API.");
                 }
             } catch (error) {
-                console.error('8Ball AI System Error (Using Fallback System):', error);
+                console.error('8Ball AI System Error:', error);
+                finalAnswer = "⚠️ **Error:** Failed to connect to the AI Engine. Please check your host console logs or your OpenAI credit balance.";
+                errorOccurred = true;
             }
         }
 
-        // Emergency backup: If the AI failed or skipped, pick a random answer
-        if (!finalAnswer) {
-            finalAnswer = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
-        }
-
-        // Build the display embed response
+        // Build the updated embed display response
         const embed = new EmbedBuilder()
             .setTitle('🔮 The Custom 8-Ball')
-            .setColor(isAiGenerated ? '#00FFCC' : '#4B0082') 
+            .setColor(errorOccurred ? '#FF3333' : '#00FFCC') // Red for error, Green/Cyan for success
             .addFields(
                 { name: '❓ Your Question', value: `\`\`\`${question}\`\`\``, inline: false },
-                { name: '🎱 The Answer', value: `> **${finalAnswer}**`, inline: false }
+                { name: '🎱 The Answer', value: errorOccurred ? finalAnswer : `> **${finalAnswer}**`, inline: false }
             )
             .setFooter({ 
-                text: `Asked by ${interaction.user.username} • Mode: ${isAiGenerated ? '🧠 AI Engine' : '🎲 Fail-Safe Shaker'}` 
+                text: `Asked by ${interaction.user.username} • Mode: 🧠 100% AI Engine` 
             })
             .setTimestamp();
 
-        if (interaction.deferred) {
-            await interaction.editReply({ embeds: [embed] });
-        } else {
-            await interaction.reply({ embeds: [embed] });
-        }
+        // Send the completed embed back to the channel
+        await interaction.editReply({ embeds: [embed] });
     }
 };
