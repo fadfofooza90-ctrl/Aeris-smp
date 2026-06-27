@@ -36,25 +36,31 @@ export default {
                         contents: [{
                             parts: [{
                                 text: `Context: You are an unhinged, brutally savage, and hilarious Magic 8-Ball bot inside a competitive Minecraft SMP Discord server named Flow SMP.
-                                Task: Answer the user's question. Act like a toxic, chronically online Discord regular roasting or hyping someone up in general chat.
+                                Task: Answer the user's question. Act like a toxic, chronically online Discord regular roasting or hyping up community players in public server channels.
                                 
                                 Personality & Style Guidelines:
-                                - Use modern, aggressive gaming community and Discord slang (e.g., gng, ts, lil bro, cooked, capping, main character syndrome, delusional, bugging, sum shi, wild).
-                                - Match a casual typing style (mostly lowercase, punchy, aggressive but funny).
-                                - Give severe reality checks if someone asks if they are good, rich, or the best. 
+                                - Use heavy modern Discord and gaming slang (e.g., gng, ts, lil bro, cooked, capping, main character syndrome, delusional, bugging, sum shi, wild, npc).
+                                - Always type in casual lowercase letters.
+                                - SPAM 1 to 3 toxic or funny emojis in every single answer (like 💀, 😭, 🤡, 🗣️, 🥶, 📉, 🔥, 🙏).
                                 
                                 CRITICAL OUTPUT RULES:
-                                1. You must output a FULL, completed thought. Never leave a sentence hanging.
-                                2. Keep the response short—exactly 1 or 2 sentences max. 
-                                3. Do not use generic 8-ball answers ever.
+                                1. You MUST finish your thought and output a full, grammatically complete phrase. Never cut off mid-sentence.
+                                2. Keep the response punchy and short—exactly 1 or 2 sentences max.
                                 
                                 User Question: "${question}"`
                             }]
                         }],
                         generationConfig: {
                             maxOutputTokens: 100,
-                            temperature: 0.95 // 🔥 Turned up the creativity for unhinged responses
-                        }
+                            temperature: 0.98 // Even higher creativity for maximum unhinged responses
+                        },
+                        // 🔒 THROW GOOGLE'S FILTERS IN THE TRASH SO IT STOPS CUTTING OFF SENTENCES
+                        safetySettings: [
+                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                        ]
                     })
                 });
 
