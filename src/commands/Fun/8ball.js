@@ -2,9 +2,13 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 
-// ⏱️ Tracks player cooldowns in the bot's memory
-const cooldowns = new Map();
-const COOLDOWN_TIME = 5000; // 5000 milliseconds = 5 seconds
+// ⏱️ Cooldown tracking storage
+const userCooldowns = new Map();
+const USER_COOLDOWN_TIME = 5000; // 5 seconds per individual user
+
+// 🌐 Global protection storage (Tracks total server requests over a rolling 60 seconds)
+let globalRequestTimestamps = [];
+const GLOBAL_MAX_REQUESTS = 15; // Safe buffer under Google's 20-request limit
 
 export default {
     data: new SlashCommandBuilder()
@@ -22,25 +26,36 @@ export default {
         const userId = interaction.user.id;
         const now = Date.now();
 
-        // 🛑 COOLDOWN CHECKER (Triggers BEFORE calling Google to save your quota)
-        if (cooldowns.has(userId)) {
-            const expirationTime = cooldowns.get(userId) + COOLDOWN_TIME;
-            
+        // 1. CLEAN UP GLOBAL TIMESTAMPS (Remove anything older than 60 seconds)
+        globalRequestTimestamps = globalRequestTimestamps.filter(timestamp => now - timestamp < 60000);
+
+        // 2. GLOBAL RATE LIMIT GUARD (Blocks server-wide spam)
+        if (globalRequestTimestamps.length >= GLOBAL_MAX_REQUESTS) {
+            return interaction.reply({
+                content: `🥶 **the 8-ball is literally overheating right now.** the whole server is spamming ts, wait a minute for the AI engine to cool down gng 📉`,
+                ephemeral: true
+            });
+        }
+
+        // 3. PER-USER COOLDOWN GUARD (Blocks single-user spam)
+        if (userCooldowns.has(userId)) {
+            const expirationTime = userCooldowns.get(userId) + USER_COOLDOWN_TIME;
             if (now < expirationTime) {
                 const timeLeft = ((expirationTime - now) / 1000).toFixed(1);
                 return interaction.reply({ 
-                    content: `💀 **lil bro chill, stop spamming the 8-ball.** touch grass for **${timeLeft}s** before asking sum shi again gng.`, 
-                    ephemeral: true // Only the spammer sees this warning message
+                    content: `💀 **lil bro chill, stop spamming the 8-ball.** touch grass for **${timeLeft}s** before asking sum shi again.`, 
+                    ephemeral: true 
                 });
             }
         }
 
-        // Defer reply since the user cleared the cooldown guard
+        // --- All checks cleared! Proceeding to execute request ---
         await interaction.deferReply();
 
-        // Set the cooldown timestamp for the user
-        cooldowns.set(userId, now);
-        setTimeout(() => cooldowns.delete(userId), COOLDOWN_TIME);
+        // Log this request into the tracking systems
+        userCooldowns.set(userId, now);
+        globalRequestTimestamps.push(now);
+        setTimeout(() => userCooldowns.delete(userId), USER_COOLDOWN_TIME);
 
         let finalAnswer = "";
         let errorOccurred = false;
