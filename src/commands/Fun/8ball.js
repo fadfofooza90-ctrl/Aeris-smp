@@ -1,12 +1,12 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
-// 🔑 PASTE YOUR AI API KEY HERE
+// 🔑 PASTE YOUR NEW SECURE OPENAI API KEY HERE
 const AI_API_KEY = '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'; 
 
 export default {
     data: new SlashCommandBuilder()
         .setName('8ball')
-        .setDescription('Ask the magic 8-ball a question (Random or AI powered)')
+        .setDescription('Ask the magic 8-ball a question and get a funny, custom AI answer')
         .addStringOption(option =>
             option.setName('question')
                 .setDescription('The question you want to ask the 8-ball')
@@ -17,30 +17,23 @@ export default {
     async execute(interaction) {
         const question = interaction.options.getString('question');
 
-        // Local unhinged response pool
-        const localResponses = [
+        // Fallback responses ONLY used if your AI key breaks or runs out of credits
+        const fallbackResponses = [
             "buddy im not fucking gpt 🤫",
             "ts guy thinks i have 100 ram inside my ahh 😭",
             "Idk gng why u asking me 💀",
             "It is certain 🟢",
             "Without a doubt ✅",
-            "Signs point to yes, we up 🔥",
-            "Reply hazy, wrap it up and try again 🟡",
-            "Better not tell you now 🤫",
-            "Concentrate and ask again 🔄",
             "Don't count on it, it's over for u 📉",
-            "My sources say no ❌",
             "Bro, absolutely not 🚫"
         ];
 
         let finalAnswer = "";
         let isAiGenerated = false;
 
-        // 🎲 Flip a coin: 50% chance to attempt AI response
-        const rollForAI = Math.random() > 0.5;
-
-        if (rollForAI && AI_API_KEY && AI_API_KEY !== 'YOUR_OPENAI_API_KEY') {
-            // Defer the reply immediately since AI APIs can take a couple of seconds to respond
+        // Check if a custom key has been configured
+        if (AI_API_KEY && AI_API_KEY !== 'YOUR_OPENAI_API_KEY') {
+            // Defer immediately because AI requests take 1-2 seconds to process
             await interaction.deferReply();
 
             try {
@@ -51,16 +44,18 @@ export default {
                         'Authorization': `Bearer ${AI_API_KEY}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini', // Lightweight, fast, and cheap model
+                        model: 'gpt-4o-mini', 
                         messages: [
                             { 
                                 role: 'system', 
-                                content: 'You are a hilarious, witty Magic 8-Ball inside a Minecraft SMP Discord server. Give a clever, funny, or genuinely good prediction/answer to the user\'s question. Keep it very short (1 sentence max) and use modern casual language matching a gaming community.' 
+                                content: `You are a hilarious, witty Magic 8-Ball inside a competitive Minecraft SMP Discord server. 
+                                A user is going to ask you a question. You must read their question and give a genuinely good, accurate, or smart answer to it, BUT deliver the answer using funny, modern gaming community brainrot or casual slang. 
+                                Feel free to occasionally use phrases like 'buddy im not gpt', 'ts guy thinks I have 100 ram inside my ahh', 'gng', 'cooked', 'we up', 'it is over for u', or '💀' if it fits their question perfectly. Keep the response short (1 to 2 sentences max).`
                             },
                             { role: 'user', content: question }
                         ],
-                        max_tokens: 50,
-                        temperature: 0.8
+                        max_tokens: 80,
+                        temperature: 0.85
                     })
                 });
 
@@ -70,29 +65,28 @@ export default {
                     isAiGenerated = true;
                 }
             } catch (error) {
-                console.error('8Ball AI Error (Falling back to local pool):', error);
-                // Fallback to random array if API fails
-                finalAnswer = localResponses[Math.floor(Math.random() * localResponses.length)];
+                console.error('8Ball AI System Error:', error);
+                // Fail-safe default
+                finalAnswer = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
             }
         } else {
-            // Pick a completely random static answer from your list
-            finalAnswer = localResponses[Math.floor(Math.random() * localResponses.length)];
+            // No API key configured yet, defaults to the basic random rotation
+            finalAnswer = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
         }
 
-        // Build the clean embed response
+        // Build the display response
         const embed = new EmbedBuilder()
-            .setTitle('🔮 The Magic 8-Ball')
-            .setColor(isAiGenerated ? '#00FFCC' : '#4B0082') // Cyan for AI, Deep Purple for traditional random
+            .setTitle('🔮 The Custom 8-Ball')
+            .setColor(isAiGenerated ? '#00FFCC' : '#4B0082') 
             .addFields(
                 { name: '❓ Your Question', value: `\`\`\`${question}\`\`\``, inline: false },
                 { name: '🎱 The Answer', value: `> **${finalAnswer}**`, inline: false }
             )
             .setFooter({ 
-                text: `Asked by ${interaction.user.username} • Mode: ${isAiGenerated ? '🧠 AI Matrix' : '🎲 Classic Shaker'}` 
+                text: `Asked by ${interaction.user.username} • Powered by Flow Core Engine` 
             })
             .setTimestamp();
 
-        // If we deferred for AI, use editReply. Otherwise, do a standard reply.
         if (interaction.deferred) {
             await interaction.editReply({ embeds: [embed] });
         } else {
