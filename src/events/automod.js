@@ -71,17 +71,38 @@ export default {
         if (message.author.bot || !message.guild) return;
 
         // 👑 GLOBAL USER WHITELIST (Bypasses all checks)
-        const whitelistedUsers = ['', ''];
+        const whitelistedUsers = ['1008719737825534043', '864871855604498452'];
         if (whitelistedUsers.includes(message.author.id)) return;
 
-        const config = readConfig();
-        const allowedRoles = ['', ''];
+        // 🛡️ THE 7 ROLES THAT BYPASS EVERYTHING
+        const allowedRoles = [
+            '1513984221587181632', // 1st Role
+            '1518682228496928778', // 2nd Role
+            '1513984221587181633', // 3rd Role
+            '1520171755065573456', // 4th Role
+            '1513984221587181634', // 5th Role
+            '1513984221587181636', // 6th Role
+            '1513984221587181637'  // 7th Role
+        ];
         
-        const isStaff = message.member?.roles.cache.some(role => allowedRoles.includes(role.id));
-        if (isStaff) return;
+        const hasBypassRole = message.member?.roles.cache.some(role => allowedRoles.includes(role.id));
+        if (hasBypassRole) return; // 🏃‍♂️ Exit completely if they have any of the 7 roles
 
+        const config = readConfig();
         const logChannel = message.guild.channels.cache.get(config.logChannelId);
         const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 Minutes
+
+        // ─── ANTI-PING VECTOR ──────────────────────────────────────────────
+        // Checks if regular users mention more than 4 distinct users/roles combined
+        const totalMentions = message.mentions.users.size + message.mentions.roles.size;
+        if (totalMentions > 4) {
+            await message.delete().catch(() => null);
+            await message.member.timeout(TIMEOUT_DURATION, 'AutoMod: Mass Ping Violation.').catch(() => null);
+            
+            const warnMsg = await message.channel.send(`⚠️ ${message.author}, mass pinging is not allowed here. You have been muted for 30 minutes.`);
+            setTimeout(() => warnMsg.delete().catch(() => null), 6000);
+            return;
+        }
 
         // ─── VECTOR 1: DISCORD INVITE LINKS ─────────────────────────────────
         if (config.inviteProtection) {
@@ -141,7 +162,7 @@ export default {
             }
         }
 
-        // ─── VECTOR 3: HARD WORD BLACKLIST (Instant Check - Cost: 0 Coins) ───
+        // ─── VECTOR 3: HARD WORD BLACKLIST ─────────────────────────────────
         const normalizedMessage = normalizeText(message.content);
         
         const hasBlockedWord = config.blockedWords.some(word => {
@@ -169,19 +190,17 @@ export default {
                     .setTimestamp();
                 await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
             }
-            return; // 🛑 Stops here. No AI is used since it matched an obvious bad word!
+            return; 
         }
 
-        // ─── VECTOR 4: INTELLIGENT AI CATCH-ALL (Cost: Highly Optimized) ─────
-        // Only trigger AI evaluation if the text is at least 12 characters. 
-        // This avoids wasting money on short chat updates like "Recently", "hello", or "ok".
+        // ─── VECTOR 4: INTELLIGENT AI CATCH-ALL ─────────────────────────────
         if (message.content.length >= 12) {
             try {
                 const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}` // Pulled straight from host panel
+                        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
                     },
                     body: JSON.stringify({
                         model: "open-mistral-nemo",
@@ -205,7 +224,6 @@ export default {
                 if (data.choices && data.choices[0]?.message?.content) {
                     let cleanText = data.choices[0].message.content.trim();
                     
-                    // Clean up markdown block wrapping if the AI outputs it
                     if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
                     else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
 
