@@ -20,7 +20,7 @@ export default {
         // 🔒 STRICT USER ID CHECK
         if (interaction.user.id !== '1008719737825534043') {
             return interaction.reply({ 
-                content: '❌ Access Denied: Only the server administrator can toggle this system.', 
+                content: '❌ Access Denied: Only the bot administrator can toggle this system.', 
                 ephemeral: true 
             });
         }
