@@ -120,4 +120,115 @@ export default {
                     await message.delete().catch(() => null);
                     await message.member.timeout(TIMEOUT_DURATION, 'AutoMod AI: Uploaded Explicit Content.').catch(() => null);
 
-                    const warnMsg = await message.channel.send(`❌ ${message.author}, NSFW/Explicit files are strictly
+                    const warnMsg = await message.channel.send(`❌ ${message.author}, NSFW/Explicit files are strictly prohibited. You have been muted for 30 minutes.`);
+                    setTimeout(() => warnMsg.delete().catch(() => null), 6000);
+
+                    if (logChannel) {
+                        const logEmbed = new EmbedBuilder()
+                            .setTitle('🚨 AutoMod AI Vision Violation')
+                            .setDescription('AI intercepted explicit visual media.')
+                            .setColor('#8B0000')
+                            .addFields(
+                                { name: '👤 Offender', value: `${message.author} (\`${message.author.id}\`)`, inline: true },
+                                { name: '⏱️ Action Applied', value: 'Wiped Data & 30 Min Mute', inline: true },
+                                { name: '🖼️ File Name', value: `\`${attachment.name}\``, inline: false }
+                            )
+                            .setTimestamp();
+                        await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // ─── VECTOR 3: ADVANCED WORD BLACKLIST WITH BYPASS SCANNING ─────────
+        const normalizedMessage = normalizeText(message.content);
+        
+        const hasBlockedWord = config.blockedWords.some(word => {
+            const normalizedWord = normalizeText(word);
+            return normalizedMessage.includes(normalizedWord);
+        });
+        
+        if (hasBlockedWord) {
+            await message.delete().catch(() => null);
+            await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase (or bypass attempt).').catch(() => null);
+
+            const warnMsg = await message.channel.send(`❌ ${message.author}, that phrase (or a variation of it) is banned in this server.`);
+            setTimeout(() => warnMsg.delete().catch(() => null), 5000);
+
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('🛡️ AutoMod Phrase Matched')
+                    .setColor('#FF0000')
+                    .addFields(
+                        { name: '👤 User', value: `${message.author}`, inline: true },
+                        { name: '⏱️ Action Taken', value: '2 Hours Mute', inline: true },
+                        { name: '📄 Original Message', value: `\`\`\`${message.content}\`\`\`` },
+                        { name: '⚙️ Normalized Clean Text', value: `\`${normalizedMessage}\`` }
+                    )
+                    .setTimestamp();
+                await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+            }
+            return; 
+        }
+
+        // ─── VECTOR 4: INTELLIGENT AI JUDGE (With Maximum Sarcasm) ───────────
+        if (message.content.length >= 12) {
+            try {
+                const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "open-mistral-nemo",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `You are the incredibly sarcastic, dryly ironic, and utterly unamused AI moderator of Flow SMP. You treat rule-breakers like direct embarrassments to the human race. Analyze this text for toxic behavior, severe harassment, malicious bypass attempts, or server disruption.
+                                Return ONLY a raw JSON object: { "toxic": true/false, "roast": "your 1-sentence sarcastic roast" }.
+                                - Regular chat text or simple complaints are safe (toxic: false).
+                                - Hidden toxicity, slurs, or actual malice (toxic: true).
+                                - The roast MUST be masterfully sarcastic, mockingly polite, or filled with dry irony (Examples: "Oh wow, groundbreaking insult. Did your last two remaining brain cells overheat typing that?", "Stunning performance, truly. I’m sure everyone is deeply intimidated by your keyboard keyboard warrior skills.").`
+                            },
+                            { role: "user", content: message.content }
+                        ],
+                        temperature: 0.65 // Slightly increased temperature allows the AI to get more creative/witty with insults
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.choices && data.choices[0]?.message?.content) {
+                    let cleanText = data.choices[0].message.content.trim();
+                    
+                    if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+                    else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+
+                    const result = JSON.parse(cleanText);
+
+                    if (result.toxic) {
+                        await message.delete().catch(() => null);
+                        await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** ${result.roast} 📉`);
+                        
+                        if (logChannel) {
+                            const logEmbed = new EmbedBuilder()
+                                .setTitle('🧠 AI AutoMod Flag')
+                                .setColor('#FF4500')
+                                .addFields(
+                                    { name: '👤 User', value: `${message.author}`, inline: true },
+                                    { name: '⏱️ Action Taken', value: 'Deleted by Mistral AI Judgment', inline: true },
+                                    { name: '📄 Flagged Message', value: `\`\`\`${message.content}\`\`\`` }
+                                )
+                                .setTimestamp();
+                            await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Automod Mistral Runtime Error:', error);
+            }
+        }
+    }
+};
