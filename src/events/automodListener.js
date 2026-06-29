@@ -113,7 +113,7 @@ export default {
         // ─── VECTOR 2: AI NSFW ATTACHMENT SCANNER ────────────────────────────
         if (config.aiVisionModeration && message.attachments.size > 0) {
             for (const attachment of message.attachments.values()) {
-                const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(attachment.name);
+                const isImage = /\ Rog.jpg|jpeg|png|webp|gif)$/i.test(attachment.name);
                 if (!isImage) continue;
 
                 const isExplicit = await scanImageForNSFW(attachment.url);
@@ -173,7 +173,7 @@ export default {
             return; 
         }
 
-        // ─── VECTOR 4: INTELLIGENT AI JUDGE (Calmed Down & Precise) ─────────
+        // ─── VECTOR 4: INTELLIGENT AI JUDGE (Strictly For Bypasses Only) ─────
         if (message.content.length >= 12) {
             try {
                 const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -187,18 +187,19 @@ export default {
                         messages: [
                             {
                                 role: "system",
-                                content: `You are the sarcastic AI moderator of Flow SMP. Analyze this text ONLY for clear, undeniable toxicity, severe harassment, slurs, or malicious rule-breaking.
-                                Return ONLY a raw JSON object: { "toxic": true/false, "roast": "your 1-sentence sarcastic roast" }.
+                                content: `You are a strict, literal-minded assistant for a Minecraft server. Your ONLY job is to detect severe slurs, extreme hate speech, or clever bypass attempts of swear words.
 
-                                🛑 CRITICAL INSTRUCTIONS TO PREVENT FALSE POSITIVES:
-                                1. Do NOT flag common gaming slang, server terminology, typos, abbreviations (like 'ss' for screenshare), or standard everyday chat.
-                                2. If a message is ambiguous, just regular chat, or a normal conversation/complaint, you MUST set "toxic": false.
-                                3. Only set "toxic": true if it contains blatant toxicity, severe toxicity, slurs, or unmistakable harassment.
-                                4. Never print or repeat any bad words inside your roast.`
+                                🛑 AIRTIGHT RULES TO AVOID FALSE POSITIVES:
+                                1. If a message is a normal question, regular argument, server conversation, or everyday statement, it is 100% SAFE. You must mark it toxic: false.
+                                2. Examples of completely SAFE text: "why are you admitting?", "screenshare please", "ss", "you are bad at this game", "why did you do that".
+                                3. Do NOT look for generic "attitude" or "sarcasm". Only flag clear, explicit profanity or bypassing of slurs. If no extreme bad words are hidden, toxic is false.
+                                4. Never repeat bad words in the roast.
+
+                                Return ONLY a raw JSON object: { "toxic": true/false, "roast": "your 1-sentence sarcastic roast" }.`
                             },
                             { role: "user", content: message.content }
                         ],
-                        temperature: 0.35 // 📉 Lower temperature makes the AI much more disciplined and less likely to guess or hallucinate
+                        temperature: 0.1 // 🔒 Set to minimum value to stop the AI from overthinking or guessing
                     })
                 });
 
