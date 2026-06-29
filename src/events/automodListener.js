@@ -15,13 +15,15 @@ function readConfig() {
     try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (!config.blockedWords) config.blockedWords = DEFAULT_WORDS;
+        if (config.enabled === undefined) config.enabled = true; // Default to ON if the property is missing
         return config;
     } catch {
         return { 
             logChannelId: "1513984222346612805", 
             blockedWords: DEFAULT_WORDS,
             inviteProtection: true,
-            aiVisionModeration: true
+            aiVisionModeration: true,
+            enabled: true // Default setup fallback
         };
     }
 }
@@ -70,11 +72,17 @@ export default {
     async execute(message, client) {
         if (message.author.bot || !message.guild) return;
 
+        // Load configuration updates
+        const config = readConfig();
+
+        // 🛑 GLOBAL MASTER SWITCH CHECK
+        // Stops the script execution here instantly if /automod status off was run
+        if (config.enabled === false) return;
+
         // 👑 GLOBAL USER WHITELIST
         const whitelistedUsers = ['1008719737825534043', '864871855604498452'];
         if (whitelistedUsers.includes(message.author.id)) return;
 
-        const config = readConfig();
         const allowedRoles = ['1513984221587181637', '1513984221587181636'];
         
         const isStaff = message.member?.roles.cache.some(role => allowedRoles.includes(role.id));
