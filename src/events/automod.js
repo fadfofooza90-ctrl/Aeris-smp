@@ -70,30 +70,29 @@ export default {
     async execute(message, client) {
         if (message.author.bot || !message.guild) return;
 
-        // 👑 GLOBAL USER WHITELIST (Bypasses all checks)
+        // 👑 GLOBAL USER WHITELIST
         const whitelistedUsers = ['1008719737825534043', '864871855604498452'];
         if (whitelistedUsers.includes(message.author.id)) return;
 
         // 🛡️ THE 7 ROLES THAT BYPASS EVERYTHING
         const allowedRoles = [
-            '1513984221587181632', // 1st Role
-            '1518682228496928778', // 2nd Role
-            '1513984221587181633', // 3rd Role
-            '1520171755065573456', // 4th Role
-            '1513984221587181634', // 5th Role
-            '1513984221587181636', // 6th Role
-            '1513984221587181637'  // 7th Role
+            '1513984221587181632', 
+            '1518682228496928778', 
+            '1513984221587181633', 
+            '1520171755065573456', 
+            '1513984221587181634', 
+            '1513984221587181636', 
+            '1513984221587181637'
         ];
         
         const hasBypassRole = message.member?.roles.cache.some(role => allowedRoles.includes(role.id));
-        if (hasBypassRole) return; // 🏃‍♂️ Exit completely if they have any of the 7 roles
+        if (hasBypassRole) return;
 
         const config = readConfig();
         const logChannel = message.guild.channels.cache.get(config.logChannelId);
-        const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 Minutes
+        const TIMEOUT_DURATION = 30 * 60 * 1000;
 
         // ─── ANTI-PING VECTOR ──────────────────────────────────────────────
-        // Checks if regular users mention more than 4 distinct users/roles combined
         const totalMentions = message.mentions.users.size + message.mentions.roles.size;
         if (totalMentions > 4) {
             await message.delete().catch(() => null);
@@ -164,7 +163,6 @@ export default {
 
         // ─── VECTOR 3: HARD WORD BLACKLIST ─────────────────────────────────
         const normalizedMessage = normalizeText(message.content);
-        
         const hasBlockedWord = config.blockedWords.some(word => {
             const normalizedWord = normalizeText(word);
             return normalizedMessage.includes(normalizedWord);
@@ -207,10 +205,10 @@ export default {
                         messages: [
                             {
                                 role: "system",
-                                content: `You are the cold, cynical AI moderator of Flow SMP. You despise rule breakers. Analyze this text for toxic intent, severe bypass behaviors, context harassment, or malicious threats.
+                                content: `You are the cold, cynical AI moderator of Flow SMP (a Minecraft multiplayer server). You despise rule breakers. Analyze this text for toxic intent, severe bypass behaviors, context harassment, or malicious threats.
                                 Return ONLY a raw JSON object: { "toxic": true/false, "roast": "a 1-sentence sharp insult" }.
-                                - Regular conversations, venting, or words like "recently" are completely safe (toxic: false).
-                                - Hidden toxicity, bypass slurs, or real malicious toxicity (toxic: true).
+                                - Regular video game discussions, Minecraft terminology (like "raids", "ragebait", "grinding", "pvp", "griefing"), venting, or words like "recently" are completely safe (toxic: false).
+                                - Hidden toxicity, bypass slurs, real malicious toxicity, or actual human harassment (toxic: true).
                                 - Keep the roast condescending.`
                             },
                             { role: "user", content: message.content }
@@ -223,7 +221,6 @@ export default {
                 
                 if (data.choices && data.choices[0]?.message?.content) {
                     let cleanText = data.choices[0].message.content.trim();
-                    
                     if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
                     else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
 
