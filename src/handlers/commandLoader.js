@@ -1,13 +1,13 @@
 import { readdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { Routes } from 'discord.js';
 import { logger } from '../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Keeps your excellent recursive subfolder scanner intact
+// Recursive scanner to dig deep into subfolders
 async function getFiles(dir) {
   const dirents = await readdir(dir, { withFileTypes: true });
   const files = await Promise.all(dirents.map(async (dirent) => {
@@ -18,11 +18,20 @@ async function getFiles(dir) {
 }
 
 /**
- * 1. Loads commands from files into bot memory (Expected by app.js)
+ * 1. Loads commands from your files into bot memory
  */
 export async function loadCommands(client) {
   try {
     const commandsPath = join(__dirname, '../commands');
+    
+    // Verify the folder actually exists where the bot expects it
+    try {
+      await readdir(commandsPath);
+    } catch {
+      logger.error(`❌ Directory missing! Make sure your 'commands' folder lives inside 'src/': ${commandsPath}`);
+      return;
+    }
+    
     const commandFiles = (await getFiles(commandsPath))
       .filter(file => file.endsWith('.js') && !file.includes('_') && !file.includes('\\_') && !file.includes('/_'));
     
@@ -30,8 +39,9 @@ export async function loadCommands(client) {
 
     for (const file of commandFiles) {
       try {
-        // Using file:// prefix ensures ESM imports work seamlessly across all OS environments
-        const commandModule = await import(`file://${file}`);
+        // Safe, cross-platform way to convert absolute system paths to clean web URLs
+        const fileUrl = pathToFileURL(file).href;
+        const commandModule = await import(fileUrl);
         const command = commandModule.default;
         
         if (!command || !command.data || !command.execute) {
@@ -47,33 +57,34 @@ export async function loadCommands(client) {
       }
     }
     
-    logger.info(`Successfully loaded ${loadedCount} commands into local memory`);
+    logger.info(`Successfully loaded ${loadedCount} commands into local memory.`);
   } catch (error) {
     logger.error('Error loading commands:', error);
   }
 }
 
 /**
- * 2. Pushes commands from bot memory up to Discord's API servers (Expected by app.js)
+ * 2. Pushes those commands to Discord's server network
  */
 export async function registerCommands(client, guildId) {
   try {
     const commandsJSON = Array.from(client.commands.values()).map(command => command.data.toJSON());
 
     if (guildId) {
-      logger.info(`Syncing slash command layouts to Guild ID: ${guildId}...`);
+      logger.info(`Syncing slash command layouts directly to Guild ID: ${guildId}...`);
       await client.rest.put(
         Routes.applicationGuildCommands(client.user.id, guildId),
         { body: commandsJSON }
       );
+      logger.info('✅ Slash commands successfully registered to your development server!');
     } else {
-      logger.info('Syncing slash command layouts globally to all guilds...');
+      logger.info('Syncing layouts globally (Note: Discord global registration takes up to 1 hour)...');
       await client.rest.put(
         Routes.applicationCommands(client.user.id),
         { body: commandsJSON }
       );
+      logger.info('✅ Slash commands successfully registered globally!');
     }
-    logger.info('✅ Slash commands successfully registered with Discord API!');
   } catch (error) {
     logger.error('❌ Failed to register slash commands with Discord API:', error);
   }
