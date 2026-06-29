@@ -15,7 +15,7 @@ function readConfig() {
     try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (!config.blockedWords) config.blockedWords = DEFAULT_WORDS;
-        if (config.enabled === undefined) config.enabled = true; // Default to ON if the property is missing
+        if (config.enabled === undefined) config.enabled = true; 
         return config;
     } catch {
         return { 
@@ -23,7 +23,7 @@ function readConfig() {
             blockedWords: DEFAULT_WORDS,
             inviteProtection: true,
             aiVisionModeration: true,
-            enabled: true // Default setup fallback
+            enabled: true 
         };
     }
 }
@@ -76,7 +76,6 @@ export default {
         const config = readConfig();
 
         // 🛑 GLOBAL MASTER SWITCH CHECK
-        // Stops the script execution here instantly if /automod status off was run
         if (config.enabled === false) return;
 
         // 👑 GLOBAL USER WHITELIST
@@ -89,8 +88,8 @@ export default {
         if (isStaff) return;
 
         const logChannel = message.guild.channels.cache.get(config.logChannelId);
-        const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 Minutes
-        const BOT_DELETE_TIMEOUT = 40 * 1000; // 40 Seconds
+        const TIMEOUT_DURATION = 30 * 60 * 1000; 
+        const BOT_DELETE_TIMEOUT = 40 * 1000; 
 
         // ─── VECTOR 1: DISCORD INVITE LINKS ─────────────────────────────────
         if (config.inviteProtection) {
@@ -118,7 +117,7 @@ export default {
             }
         }
 
-        // ─── VECTOR 2: AI NSFW ATTACHMENT SCANNER (Kept because it is accurate) ───
+        // ─── VECTOR 2: AI NSFW ATTACHMENT SCANNER ───────────────────────────
         if (config.aiVisionModeration && message.attachments.size > 0) {
             for (const attachment of message.attachments.values()) {
                 const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(attachment.name);
@@ -150,7 +149,7 @@ export default {
             }
         }
 
-        // ─── VECTOR 3: HARD WORD BLACKLIST (Strict & Predictable) ────────────
+        // ─── VECTOR 3: HARD WORD BLACKLIST ─────────────────────────────────
         const normalizedMessage = normalizeText(message.content);
         
         const hasBlockedWord = config.blockedWords.some(word => {
