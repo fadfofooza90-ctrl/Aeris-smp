@@ -82,9 +82,7 @@ export default {
 
         const logChannel = message.guild.channels.cache.get(config.logChannelId);
         const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 Minutes
-        
-        // ⏰ CONFIRMED: 40 seconds auto-delete timer for bot responses
-        const BOT_DELETE_TIMEOUT = 40 * 1000; 
+        const BOT_DELETE_TIMEOUT = 40 * 1000; // 40 Seconds
 
         // ─── VECTOR 1: DISCORD INVITE LINKS ─────────────────────────────────
         if (config.inviteProtection) {
@@ -112,7 +110,7 @@ export default {
             }
         }
 
-        // ───── VECTOR 2: AI NSFW ATTACHMENT SCANNER ──────────────────────────
+        // ─── VECTOR 2: AI NSFW ATTACHMENT SCANNER (Kept because it is accurate) ───
         if (config.aiVisionModeration && message.attachments.size > 0) {
             for (const attachment of message.attachments.values()) {
                 const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(attachment.name);
@@ -144,7 +142,7 @@ export default {
             }
         }
 
-        // ─── VECTOR 3: ADVANCED WORD BLACKLIST WITH BYPASS SCANNING ─────────
+        // ─── VECTOR 3: HARD WORD BLACKLIST (Strict & Predictable) ────────────
         const normalizedMessage = normalizeText(message.content);
         
         const hasBlockedWord = config.blockedWords.some(word => {
@@ -154,7 +152,7 @@ export default {
         
         if (hasBlockedWord) {
             await message.delete().catch(() => null);
-            await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase (or bypass attempt).').catch(() => null);
+            await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase.').catch(() => null);
 
             const warnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** Oh ${message.author}, trying to curse / swear just makes you look like a total loser. 📉`);
             setTimeout(() => warnMsg.delete().catch(() => null), BOT_DELETE_TIMEOUT);
@@ -173,71 +171,6 @@ export default {
                 await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
             }
             return; 
-        }
-
-        // ─── VECTOR 4: INTELLIGENT AI JUDGE (Brutally Simple Profanity Filter) ───
-        if (message.content.length >= 12) {
-            try {
-                const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
-                    },
-                    body: JSON.stringify({
-                        model: "open-mistral-nemo",
-                        messages: [
-                            {
-                                role: "system",
-                                content: `You are a strict binary filter. Your ONLY job is to check if the text contains explicit curse words, swear words, or heavy slurs.
-
-                                🚫 STUPIDLY STRICT FALSE-POSITIVE PROTECTION RULES:
-                                1. Standard chat sentences, normal video game arguments, questions, or player call-outs are 100% SAFE. You MUST set toxic: false.
-                                2. Examples of completely SAFE text that you must NEVER flag: "youre doing that on purpose", "why are you admitting?", "you gonna get ip banned", "stop hitting me", "he is cheating".
-                                3. Do NOT try to look for sarcasm, attitude, or passive-aggressive behavior. If there is no explicit curse word or heavy insult, toxic is false.
-                                4. Never repeat bad words in your roast.
-
-                                Return ONLY a raw JSON object: { "toxic": true/false, "roast": "a sarcastic 1-sentence roast if toxic is true" }.`
-                            },
-                            { role: "user", content: message.content }
-                        ],
-                        temperature: 0.1
-                    })
-                });
-
-                const data = await response.json();
-                
-                if (data.choices && data.choices[0]?.message?.content) {
-                    let cleanText = data.choices[0].message.content.trim();
-                    
-                    if (cleanText.startsWith('```json')) cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-                    else if (cleanText.startsWith('```')) cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-
-                    const result = JSON.parse(cleanText);
-
-                    if (result.toxic) {
-                        await message.delete().catch(() => null);
-                        
-                        const aiWarnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** ${result.roast} 📉`);
-                        setTimeout(() => aiWarnMsg.delete().catch(() => null), BOT_DELETE_TIMEOUT);
-                        
-                        if (logChannel) {
-                            const logEmbed = new EmbedBuilder()
-                                .setTitle('🧠 AI AutoMod Flag')
-                                .setColor('#FF4500')
-                                .addFields(
-                                    { name: '👤 User', value: `${message.author}`, inline: true },
-                                    { name: '⏱️ Action Taken', value: 'Deleted by Mistral AI Judgment', inline: true },
-                                    { name: '📄 Flagged Message', value: `\`\`\`${message.content}\`\`\`` }
-                                )
-                                .setTimestamp();
-                            await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Automod Mistral Runtime Error:', error);
-            }
         }
     }
 };
