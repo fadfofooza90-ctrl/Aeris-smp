@@ -6,15 +6,20 @@ const configPath = path.resolve('./automodConfig.json');
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('automod') // This keeps the slash command as /automod like you wanted
-        .setDescription('Toggle the entire AutoMod system on or off')
-        .addStringOption(option =>
-            option.setName('status')
-                .setDescription('Turn AutoMod ON or OFF')
-                .setRequired(true)
-                .addChoices(
-                    { name: 'on', value: 'on' },
-                    { name: 'off', value: 'off' }
+        .setName('automod')
+        .setDescription('Main command for managing the AutoMod system')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('status') // This turns "status" into the subcommand (/automod status)
+                .setDescription('Toggle the entire AutoMod system on or off')
+                .addStringOption(option =>
+                    option.setName('toggle')
+                        .setDescription('Choose whether to turn the system ON or OFF')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'on', value: 'on' },
+                            { name: 'off', value: 'off' }
+                        )
                 )),
     async execute(interaction) {
         // 🔒 STRICT USER ID CHECK
@@ -25,31 +30,37 @@ export default {
             });
         }
 
-        const status = interaction.options.getString('status');
-        
-        let config = {};
-        try {
-            config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        } catch {
-            config = { 
-                logChannelId: "1513984222346612805", 
-                blockedWords: [
-                    "nigger", "nigga", "niga", "niger", 
-                    "fuckass", "mf", "motherfucker", 
-                    "bitch", "bitches", "dumbfuck", 
-                    "kys", "killyourself"
-                ],
-                inviteProtection: true,
-                aiVisionModeration: true
-            };
+        // Check which subcommand was used
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'status') {
+            const toggleValue = interaction.options.getString('toggle');
+            
+            let config = {};
+            try {
+                config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            } catch {
+                config = { 
+                    logChannelId: "1513984222346612805", 
+                    blockedWords: [
+                        "nigger", "nigga", "niga", "niger", 
+                        "fuckass", "mf", "motherfucker", 
+                        "bitch", "bitches", "dumbfuck", 
+                        "kys", "killyourself"
+                    ],
+                    inviteProtection: true,
+                    aiVisionModeration: true
+                };
+            }
+
+            // Set the state based on selection
+            config.enabled = (toggleValue === 'on');
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
+
+            await interaction.reply({ 
+                content: `⚙️ **AutoMod has been successfully switched ${toggleValue.toUpperCase()}.**`, 
+                ephemeral: true 
+            });
         }
-
-        config.enabled = (status === 'on');
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 4));
-
-        await interaction.reply({ 
-            content: `⚙️ **AutoMod has been successfully switched ${status.toUpperCase()}.**`, 
-            ephemeral: true 
-        });
     },
 };
