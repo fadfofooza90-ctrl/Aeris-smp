@@ -15,5 +15,6 @@
     "killyourself"
   ],
   "inviteProtection": true,
-  "aiVisionModeration": true
+  "aiVisionModeration": true,
+  "enabled": true
 }
