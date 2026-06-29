@@ -82,6 +82,7 @@ export default {
 
         const logChannel = message.guild.channels.cache.get(config.logChannelId);
         const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 Minutes
+        const BOT_DELETE_TIMEOUT = 2 * 60 * 1000; // ⏰ 2 Minutes in milliseconds
 
         // ─── VECTOR 1: DISCORD INVITE LINKS ─────────────────────────────────
         if (config.inviteProtection) {
@@ -153,9 +154,11 @@ export default {
             await message.delete().catch(() => null);
             await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase (or bypass attempt).').catch(() => null);
 
-            // ✨ UPGRADED: Replaced the generic warning message with a high-tier sarcastic remark
-            const warnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** What a lyrical genius. Too bad that word—and whatever weak attempt you made to bypass the filter—is completely banned here. Enjoy the 2-hour nap. 📉`);
-            setTimeout(() => warnMsg.delete().catch(() => null), 5000);
+            // 🌟 CUSTOMIZED: Clean, non-repeating custom roast format
+            const warnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** Oh ${message.author}, trying to curse / swear just makes you look like a total loser. 📉`);
+            
+            // ⏰ Automatically wipes the bot's response after 2 minutes
+            setTimeout(() => warnMsg.delete().catch(() => null), BOT_DELETE_TIMEOUT);
 
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
@@ -187,11 +190,15 @@ export default {
                         messages: [
                             {
                                 role: "system",
-                                content: `You are the incredibly sarcastic, dryly ironic, and utterly unamused AI moderator of Flow SMP. You treat rule-breakers like direct embarrassments to the human race. Analyze this text for toxic behavior, severe harassment, malicious bypass attempts, or server disruption.
+                                content: `You are the incredibly sarcastic and dry AI moderator of Flow SMP. Analyze this text for toxic behavior, severe harassment, malicious bypass attempts, or server disruption.
                                 Return ONLY a raw JSON object: { "toxic": true/false, "roast": "your 1-sentence sarcastic roast" }.
                                 - Regular chat text or simple complaints are safe (toxic: false).
                                 - Hidden toxicity, slurs, or actual malice (toxic: true).
-                                - The roast MUST be masterfully sarcastic, mockingly polite, or filled with dry irony (Examples: "Oh wow, groundbreaking insult. Did your last two remaining brain cells overheat typing that?", "Stunning performance, truly. I’m sure everyone is deeply intimidated by your keyboard warrior skills.").`
+                                
+                                🛑 CRITICAL COMPLIANCE RULES FOR THE ROAST:
+                                1. You must NEVER repeat, quote, highlight, or print out any of the specific bad words or explicit content the user typed. 
+                                2. Roast their behavior, overall attitude, or attempt to bypass the filters in a general, masterfully sarcastic manner.
+                                3. Keep it brief, mockingly polite, and direct.`
                             },
                             { role: "user", content: message.content }
                         ],
@@ -211,7 +218,10 @@ export default {
 
                     if (result.toxic) {
                         await message.delete().catch(() => null);
-                        await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** ${result.roast} 📉`);
+                        
+                        // 🌟 AI Roast: Sent, and then cleaned up after 2 minutes
+                        const aiWarnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** ${result.roast} 📉`);
+                        setTimeout(() => aiWarnMsg.delete().catch(() => null), BOT_DELETE_TIMEOUT);
                         
                         if (logChannel) {
                             const logEmbed = new EmbedBuilder()
