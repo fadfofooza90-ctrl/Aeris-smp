@@ -82,7 +82,7 @@ export default {
 
         const logChannel = message.guild.channels.cache.get(config.logChannelId);
         const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 Minutes
-        const BOT_DELETE_TIMEOUT = 2 * 60 * 1000; // ⏰ 2 Minutes in milliseconds
+        const BOT_DELETE_TIMEOUT = 2 * 60 * 1000; // 2 Minutes
 
         // ─── VECTOR 1: DISCORD INVITE LINKS ─────────────────────────────────
         if (config.inviteProtection) {
@@ -154,10 +154,7 @@ export default {
             await message.delete().catch(() => null);
             await message.member.timeout(2 * 60 * 60 * 1000, 'AutoMod: Blacklisted phrase (or bypass attempt).').catch(() => null);
 
-            // 🌟 CUSTOMIZED: Clean, non-repeating custom roast format
             const warnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** Oh ${message.author}, trying to curse / swear just makes you look like a total loser. 📉`);
-            
-            // ⏰ Automatically wipes the bot's response after 2 minutes
             setTimeout(() => warnMsg.delete().catch(() => null), BOT_DELETE_TIMEOUT);
 
             if (logChannel) {
@@ -176,7 +173,7 @@ export default {
             return; 
         }
 
-        // ─── VECTOR 4: INTELLIGENT AI JUDGE ──────────────────────────────────
+        // ─── VECTOR 4: INTELLIGENT AI JUDGE (Calmed Down & Precise) ─────────
         if (message.content.length >= 12) {
             try {
                 const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -190,19 +187,18 @@ export default {
                         messages: [
                             {
                                 role: "system",
-                                content: `You are the incredibly sarcastic and dry AI moderator of Flow SMP. Analyze this text for toxic behavior, severe harassment, malicious bypass attempts, or server disruption.
+                                content: `You are the sarcastic AI moderator of Flow SMP. Analyze this text ONLY for clear, undeniable toxicity, severe harassment, slurs, or malicious rule-breaking.
                                 Return ONLY a raw JSON object: { "toxic": true/false, "roast": "your 1-sentence sarcastic roast" }.
-                                - Regular chat text or simple complaints are safe (toxic: false).
-                                - Hidden toxicity, slurs, or actual malice (toxic: true).
-                                
-                                🛑 CRITICAL COMPLIANCE RULES FOR THE ROAST:
-                                1. You must NEVER repeat, quote, highlight, or print out any of the specific bad words or explicit content the user typed. 
-                                2. Roast their behavior, overall attitude, or attempt to bypass the filters in a general, masterfully sarcastic manner.
-                                3. Keep it brief, mockingly polite, and direct.`
+
+                                🛑 CRITICAL INSTRUCTIONS TO PREVENT FALSE POSITIVES:
+                                1. Do NOT flag common gaming slang, server terminology, typos, abbreviations (like 'ss' for screenshare), or standard everyday chat.
+                                2. If a message is ambiguous, just regular chat, or a normal conversation/complaint, you MUST set "toxic": false.
+                                3. Only set "toxic": true if it contains blatant toxicity, severe toxicity, slurs, or unmistakable harassment.
+                                4. Never print or repeat any bad words inside your roast.`
                             },
                             { role: "user", content: message.content }
                         ],
-                        temperature: 0.65
+                        temperature: 0.35 // 📉 Lower temperature makes the AI much more disciplined and less likely to guess or hallucinate
                     })
                 });
 
@@ -219,7 +215,6 @@ export default {
                     if (result.toxic) {
                         await message.delete().catch(() => null);
                         
-                        // 🌟 AI Roast: Sent, and then cleaned up after 2 minutes
                         const aiWarnMsg = await message.channel.send(`🤡 **${message.author.username} failed the vibe check.** ${result.roast} 📉`);
                         setTimeout(() => aiWarnMsg.delete().catch(() => null), BOT_DELETE_TIMEOUT);
                         
