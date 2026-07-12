@@ -14,7 +14,11 @@ export default {
                 .addChoices(
                     { name: 'Cart', value: 'Cart' },
                     { name: 'Diasmp', value: 'Diasmp' }
-                )),
+                ))
+        .addStringOption(option => 
+            option.setName('minecraft_name')
+                .setDescription('Enter your Minecraft username')
+                .setRequired(true)), // Added Minecraft name option
     category: "General",
 
     async execute(interaction, config, client) {
@@ -23,6 +27,7 @@ export default {
             if (!deferSuccess) return;
 
             const gamemode = interaction.options.getString('gamemode');
+            const mcName = interaction.options.getString('minecraft_name'); // Get the name
             const LOG_CHANNEL_ID = '1525955961171214367';
             const ROLE_TO_PING = '1525928086934130708';
 
@@ -32,14 +37,13 @@ export default {
                 return await interaction.editReply({ content: '❌ Log channel not found.' });
             }
 
-            // Send the message to the specified channel
+            // Updated log message to include the MC name
             await logChannel.send({
-                content: `<@&${ROLE_TO_PING}>, ${interaction.user} wants to tiertest in **${gamemode}**.`
+                content: `<@&${ROLE_TO_PING}>, ${interaction.user} wants to tiertest in **${gamemode}**. Minecraft Name: **${mcName}**`
             });
 
-            // UPDATED: Confirmation message for the user
             await interaction.editReply({ 
-                content: `✅ Your request in **${gamemode}** has been sent, you will be tested soon.` 
+                content: `✅ Your request in **${gamemode}** (MC: **${mcName}**) has been sent, you will be tested soon.` 
             });
 
         } catch (error) {
