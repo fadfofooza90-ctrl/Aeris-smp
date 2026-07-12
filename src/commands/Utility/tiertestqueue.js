@@ -9,15 +9,26 @@ export default {
         const embed = new EmbedBuilder()
             .setTitle('⚔️ TierTest Queue')
             .setDescription('The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n(No one is in the queue yet.)')
-            .setColor('#FFA500') // Changed color to orange to match a "tier test" theme
+            .setColor('#FFA500')
             .setTimestamp();
 
         const row = new ActionRowBuilder()
             .addComponents(
-                new ButtonBuilder().setCustomId('join_queue').setLabel('Join Queue').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('leave_queue').setLabel('Leave Queue').setStyle(ButtonStyle.Danger)
+                // IDs updated to match the handler in interactionCreate.js
+                new ButtonBuilder()
+                    .setCustomId('queue_join') 
+                    .setLabel('Join Queue')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('queue_leave')
+                    .setLabel('Leave Queue')
+                    .setStyle(ButtonStyle.Danger)
             );
 
-        await interaction.reply({ content: '@here A TierTest Queue Has Been Opened!', embeds: [embed], components: [row] });
+        await interaction.reply({ 
+            content: '@here A TierTest Queue Has Been Opened!', 
+            embeds: [embed], 
+            components: [row] 
+        });
     }
 };
