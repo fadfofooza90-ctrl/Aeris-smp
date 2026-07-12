@@ -38,7 +38,7 @@ export default {
             });
 
             await interaction.editReply({ 
-                content: `✅ Your request for a **${gamemode}** tier test has been sent to <#${LOG_CHANNEL_ID}>.` 
+                content: `✅ Your request for a **${gamemode}** tier test has been sent 
             });
 
         } catch (error) {
