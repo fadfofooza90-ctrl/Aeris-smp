@@ -3,7 +3,6 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 
 export default {
-    // THIS PART WAS MISSING: It registers the command with Discord
     data: new SlashCommandBuilder()
         .setName('test')
         .setDescription('Creates a private testing channel for a user.')
@@ -23,11 +22,13 @@ export default {
             const target = interaction.options.getMember('target');
             const role1 = '1525928086934130708';
             const role2 = '1524503770774372414';
+            const categoryId = '1525924122620854322'; // Category ID added here
 
             // Create the private channel
             const channel = await interaction.guild.channels.create({
                 name: `test-${target.user.username}`,
                 type: ChannelType.GuildText,
+                parent: categoryId, // This line places the channel in the category
                 permissionOverwrites: [
                     {
                         id: interaction.guild.id, 
@@ -52,7 +53,7 @@ export default {
             await channel.send(`${interaction.user}, the test channel for ${target} has been created.`);
 
             await interaction.editReply({ 
-                content: `✅ Successfully created private test channel: ${channel}.` 
+                content: `✅ Successfully created private test channel: ${channel} in the specified category.` 
             });
 
         } catch (error) {
