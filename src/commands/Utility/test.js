@@ -1,4 +1,21 @@
-async execute(interaction, config, client) {
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { handleInteractionError } from '../../utils/errorHandler.js';
+
+export default {
+    // THIS PART WAS MISSING: It registers the command with Discord
+    data: new SlashCommandBuilder()
+        .setName('test')
+        .setDescription('Creates a private testing channel for a user.')
+        .setDMPermission(false)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+        .addUserOption(option => 
+            option.setName('target')
+                .setDescription('The user to test')
+                .setRequired(true)),
+    category: "Moderation",
+
+    async execute(interaction, config, client) {
         try {
             const deferSuccess = await InteractionHelper.safeDefer(interaction);
             if (!deferSuccess) return;
@@ -42,3 +59,4 @@ async execute(interaction, config, client) {
             await handleInteractionError(error, interaction);
         }
     }
+};
