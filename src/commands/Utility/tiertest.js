@@ -37,8 +37,9 @@ export default {
                 content: `<@&${ROLE_TO_PING}>, ${interaction.user} wants to tiertest in **${gamemode}**.`
             });
 
+            // UPDATED: Confirmation message for the user
             await interaction.editReply({ 
-                content: `✅ Your request for a **${gamemode}** tier test has been sent 
+                content: `✅ Your request in **${gamemode}** has been sent, you will be tested soon.` 
             });
 
         } catch (error) {
