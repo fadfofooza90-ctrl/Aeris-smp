@@ -47,31 +47,38 @@ export default {
             return interaction.reply({ content: `🎟️ Ticket created for ${firstUser}!`, ephemeral: true });
           }
 
-          // 3. Admin Remove Button
+          // 3. Admin Remove Button (Updates Public Queue + Updates Admin Panel View)
           if (interaction.customId.startsWith('admin_remove')) {
             const [_, chanId, msgId] = interaction.customId.split(':');
             const pubChannel = await interaction.guild.channels.fetch(chanId);
             const pubMsg = await pubChannel.messages.fetch(msgId);
-            const embed = pubMsg.embeds[0];
             
+            const embed = pubMsg.embeds[0];
             let lines = embed.description.split('\n');
             let queueLines = lines.slice(4).filter(l => l.includes('<@'));
             
             if (queueLines.length === 0) return interaction.reply({ content: 'Queue is empty!', ephemeral: true });
             
-            // Remove the first person in queue
+            // Remove the first person
             const removedUser = queueLines.shift(); 
+            const newQueueText = queueLines.length > 0 ? queueLines.join('\n') : '(No one is in the queue yet.)';
             
-            const newDesc = `The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n${queueLines.length > 0 ? queueLines.join('\n') : '(No one is in the queue yet.)'}`;
-            await pubMsg.edit({ embeds: [EmbedBuilder.from(embed).setDescription(newDesc)] });
+            // Update Public Message
+            const newPubDesc = `The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n${newQueueText}`;
+            await pubMsg.edit({ embeds: [EmbedBuilder.from(embed).setDescription(newPubDesc)] });
             
-            return interaction.reply({ content: `✅ Removed ${removedUser} from queue.`, ephemeral: true });
+            // Update Admin Panel Embed to show current list
+            const adminEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                .setDescription(`**Current Queue:**\n${newQueueText}`);
+            
+            await interaction.update({ embeds: [adminEmbed] });
+            return;
           }
         }
       } catch (error) {
         logger.error('Error in interactionCreate:', { error });
         if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: '❌ An error occurred processing this action.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '❌ An error occurred.', ephemeral: true }).catch(() => {});
         }
       }
     });
