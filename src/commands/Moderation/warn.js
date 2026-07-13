@@ -32,9 +32,9 @@ export default {
 
             // 1. Force fetch ALL guild roles from Discord API directly
             const allRoles = await guild.roles.fetch();
-            const warn1 = allRoles.find(r => r.name === '1 warnings');
-            const warn2 = allRoles.find(r => r.name === '2 warnings');
-            const warn3 = allRoles.find(r => r.name === '3 warnings');
+            const warn1 = allRoles.find(r => r.name === 'Strike I');
+            const warn2 = allRoles.find(r => r.name === 'Strike II');
+            const warn3 = allRoles.find(r => r.name === 'Strike III');
             const staffRole = allRoles.find(r => r.name === 'Staff');
 
             if (!warn1 || !warn2 || !warn3) {
@@ -70,7 +70,7 @@ export default {
                     await member.roles.add(warn3).catch(err => console.error("Error adding role 3:", err));
 
                     // Securely look up the staff channel using your exact channel ID
-                    const staffChatChannel = client.channels.cache.get('1513984222346612806');
+                    const staffChatChannel = client.channels.cache.get('1524503771357646865');
                     if (staffChatChannel) {
                         const staffMention = staffRole ? `${staffRole}` : '@Staff';
                         await staffChatChannel.send({
