@@ -1,4 +1,4 @@
-import { Events, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { Events, EmbedBuilder } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { createInteractionTraceContext, runWithTraceContext } from '../utils/traceContext.js';
@@ -17,9 +17,9 @@ export default {
           const command = client.commands.get(interaction.commandName);
           if (command) await command.execute(interaction, null, client);
         
-        } else if (interaction.isButton() || interaction.isStringSelectMenu()) {
+        } else if (interaction.isButton()) {
           
-          // 1. Join / Leave Queue Logic
+          // 1. Join / Leave Queue Logic (Public)
           if (interaction.customId === 'queue_join' || interaction.customId === 'queue_leave') {
             const embed = interaction.message.embeds[0];
             let lines = embed.description.split('\n');
@@ -35,8 +35,8 @@ export default {
           }
 
           // 2. Admin Ticket Button
-          if (interaction.customId === 'admin_ticket') {
-            const [_, chanId, msgId] = interaction.message.content.split('|');
+          if (interaction.customId.startsWith('admin_ticket')) {
+            const [_, chanId, msgId] = interaction.customId.split(':');
             const pubChannel = await interaction.guild.channels.fetch(chanId);
             const pubMsg = await pubChannel.messages.fetch(msgId);
             const queueLines = pubMsg.embeds[0].description.split('\n').filter(l => l.includes('<@'));
@@ -46,9 +46,33 @@ export default {
             const firstUser = queueLines[0].match(/<@\d+>/)[0];
             return interaction.reply({ content: `🎟️ Ticket created for ${firstUser}!`, ephemeral: true });
           }
+
+          // 3. Admin Remove Button
+          if (interaction.customId.startsWith('admin_remove')) {
+            const [_, chanId, msgId] = interaction.customId.split(':');
+            const pubChannel = await interaction.guild.channels.fetch(chanId);
+            const pubMsg = await pubChannel.messages.fetch(msgId);
+            const embed = pubMsg.embeds[0];
+            
+            let lines = embed.description.split('\n');
+            let queueLines = lines.slice(4).filter(l => l.includes('<@'));
+            
+            if (queueLines.length === 0) return interaction.reply({ content: 'Queue is empty!', ephemeral: true });
+            
+            // Remove the first person in queue
+            const removedUser = queueLines.shift(); 
+            
+            const newDesc = `The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n${queueLines.length > 0 ? queueLines.join('\n') : '(No one is in the queue yet.)'}`;
+            await pubMsg.edit({ embeds: [EmbedBuilder.from(embed).setDescription(newDesc)] });
+            
+            return interaction.reply({ content: `✅ Removed ${removedUser} from queue.`, ephemeral: true });
+          }
         }
       } catch (error) {
         logger.error('Error in interactionCreate:', { error });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ An error occurred processing this action.', ephemeral: true }).catch(() => {});
+        }
       }
     });
   }
