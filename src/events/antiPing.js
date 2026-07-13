@@ -15,6 +15,8 @@ export default {
     const protectedUsers = [
       "864871855604498452",
       "1008719737825534043"
+      "1490749253486641332"
+      "1055909234967064676"
     ];
 
     // 👑 USER BYPASS CHECK: Whitelisted users can ping anyone unrestricted
