@@ -19,8 +19,15 @@ export default {
             new ButtonBuilder().setCustomId('queue_leave').setLabel('Leave Queue').setStyle(ButtonStyle.Danger)
         );
 
-        await interaction.reply({ content: '@here A TierTest Queue Has Been Opened!', embeds: [embed], components: [row] });
+        // 1. Send public message and fetch it to get its IDs
+        const publicMsg = await interaction.reply({ 
+            content: '@here A TierTest Queue Has Been Opened!', 
+            embeds: [embed], 
+            components: [row],
+            fetchReply: true 
+        });
 
+        // 2. Send Admin Panel with hidden IDs (Format: MessageContent|ChannelID|MessageID)
         const adminChannel = await interaction.client.channels.fetch(adminChannelId).catch(() => null);
         if (adminChannel) {
             const adminEmbed = new EmbedBuilder()
@@ -32,13 +39,12 @@ export default {
                 new ButtonBuilder().setCustomId('admin_ticket').setLabel('Make Ticket (User #1)').setStyle(ButtonStyle.Success),
                 new ButtonBuilder().setCustomId('admin_remove_trigger').setLabel('Remove User').setStyle(ButtonStyle.Danger)
             );
-            
-            // Add an empty select menu so it exists to be edited later
-            const selectRow = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder().setCustomId('admin_remove_select').setPlaceholder('Select user to remove').addOptions([{ label: 'None', value: 'none' }])
-            );
 
-            await adminChannel.send({ embeds: [adminEmbed], components: [adminRow, selectRow] });
+            await adminChannel.send({ 
+                content: `⚙️ **Queue Admin Panel**|${publicMsg.channelId}|${publicMsg.id}`, 
+                embeds: [adminEmbed], 
+                components: [adminRow] 
+            });
         }
     }
 };
