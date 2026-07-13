@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -27,7 +27,7 @@ export default {
             fetchReply: true 
         });
 
-        // 2. Send Admin Panel with hidden IDs (Format: MessageContent|ChannelID|MessageID)
+        // 2. Send Admin Panel
         const adminChannel = await interaction.client.channels.fetch(adminChannelId).catch(() => null);
         if (adminChannel) {
             const adminEmbed = new EmbedBuilder()
@@ -35,13 +35,20 @@ export default {
                 .setDescription('Use the buttons below to manage the queue.')
                 .setColor('#FF0000');
 
+            // The IDs are now hidden inside the customId of the buttons
             const adminRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('admin_ticket').setLabel('Make Ticket (User #1)').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('admin_remove_trigger').setLabel('Remove User').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder()
+                    .setCustomId(`admin_ticket:${publicMsg.channelId}:${publicMsg.id}`)
+                    .setLabel('Make Ticket (User #1)')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`admin_remove:${publicMsg.channelId}:${publicMsg.id}`)
+                    .setLabel('Remove User')
+                    .setStyle(ButtonStyle.Danger)
             );
 
             await adminChannel.send({ 
-                content: `⚙️ **Queue Admin Panel**|${publicMsg.channelId}|${publicMsg.id}`, 
+                content: '⚙️ **Queue Admin Panel**', 
                 embeds: [adminEmbed], 
                 components: [adminRow] 
             });
