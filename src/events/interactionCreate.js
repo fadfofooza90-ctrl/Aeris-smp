@@ -1,4 +1,4 @@
-import { Events, EmbedBuilder, StringSelectMenuBuilder, ActionRowBuilder } from 'discord.js';
+import { Events, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { createInteractionTraceContext, runWithTraceContext } from '../utils/traceContext.js';
@@ -19,7 +19,7 @@ export default {
         
         } else if (interaction.isButton() || interaction.isStringSelectMenu()) {
           
-          // 1. Join / Leave Queue
+          // 1. Join / Leave Queue Logic
           if (interaction.customId === 'queue_join' || interaction.customId === 'queue_leave') {
             const embed = interaction.message.embeds[0];
             let lines = embed.description.split('\n');
@@ -30,31 +30,25 @@ export default {
             if (interaction.customId === 'queue_leave') queueLines = queueLines.filter(l => l !== userMention);
 
             const newDesc = `The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n${queueLines.length > 0 ? queueLines.join('\n') : '(No one is in the queue yet.)'}`;
-            const newEmbed = EmbedBuilder.from(embed).setDescription(newDesc);
-            await interaction.update({ embeds: [newEmbed] });
+            await interaction.update({ embeds: [EmbedBuilder.from(embed).setDescription(newDesc)] });
             return;
           }
 
-          // 2. Admin Ticket Button (Gets User #1)
+          // 2. Admin Ticket Button
           if (interaction.customId === 'admin_ticket') {
-            const channel = interaction.guild.channels.cache.get('1526299637235978240');
-            const msgs = await channel.messages.fetch({ limit: 20 });
-            const queueMsg = msgs.find(m => m.embeds[0]?.title === '⚔️ TierTest Queue');
-            const firstUser = queueMsg?.embeds[0].description.match(/<@\d+>/);
+            const [_, chanId, msgId] = interaction.message.content.split('|');
+            const pubChannel = await interaction.guild.channels.fetch(chanId);
+            const pubMsg = await pubChannel.messages.fetch(msgId);
+            const queueLines = pubMsg.embeds[0].description.split('\n').filter(l => l.includes('<@'));
             
-            if (!firstUser) return interaction.reply({ content: 'Queue is empty!', ephemeral: true });
-            return interaction.reply({ content: `🎟️ Ticket created for ${firstUser[0]}!`, ephemeral: true });
-          }
-
-          // 3. Admin Remove Select Menu
-          if (interaction.customId === 'admin_remove_select') {
-            const userId = interaction.values[0];
-            // You can add logic here to find the queue message and filter the user out, then edit both messages.
-            return interaction.reply({ content: `Removed <@${userId}> from queue.`, ephemeral: true });
+            if (queueLines.length === 0) return interaction.reply({ content: 'Queue is empty!', ephemeral: true });
+            
+            const firstUser = queueLines[0].match(/<@\d+>/)[0];
+            return interaction.reply({ content: `🎟️ Ticket created for ${firstUser}!`, ephemeral: true });
           }
         }
       } catch (error) {
-        logger.error('Error:', { error });
+        logger.error('Error in interactionCreate:', { error });
       }
     });
   }
