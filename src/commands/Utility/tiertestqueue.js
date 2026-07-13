@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -19,17 +19,26 @@ export default {
             new ButtonBuilder().setCustomId('queue_leave').setLabel('Leave Queue').setStyle(ButtonStyle.Danger)
         );
 
-        // 1. Reply to user
         await interaction.reply({ content: '@here A TierTest Queue Has Been Opened!', embeds: [embed], components: [row] });
 
-        // 2. Send Admin Panel
         const adminChannel = await interaction.client.channels.fetch(adminChannelId).catch(() => null);
         if (adminChannel) {
+            const adminEmbed = new EmbedBuilder()
+                .setTitle('⚙️ Admin Queue Controls')
+                .setDescription('Use the buttons below to manage the queue.')
+                .setColor('#FF0000');
+
             const adminRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('admin_ticket').setLabel('Make Ticket (User #1)').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('admin_remove').setLabel('Remove User').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId('admin_remove_trigger').setLabel('Remove User').setStyle(ButtonStyle.Danger)
             );
-            await adminChannel.send({ content: '⚙️ **Queue Admin Panel**', embeds: [embed], components: [adminRow] });
+            
+            // Add an empty select menu so it exists to be edited later
+            const selectRow = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder().setCustomId('admin_remove_select').setPlaceholder('Select user to remove').addOptions([{ label: 'None', value: 'none' }])
+            );
+
+            await adminChannel.send({ embeds: [adminEmbed], components: [adminRow, selectRow] });
         }
     }
 };
