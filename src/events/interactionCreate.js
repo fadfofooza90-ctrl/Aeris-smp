@@ -34,42 +34,38 @@ export default {
             return;
           }
 
-          // 2. Admin Ticket Button
-          if (interaction.customId.startsWith('admin_ticket')) {
-            const [_, chanId, msgId] = interaction.customId.split(':');
+          // 2. Admin Ticket & Remove Logic (Updates Admin Panel View)
+          if (interaction.customId.startsWith('admin_ticket') || interaction.customId.startsWith('admin_remove')) {
+            const [action, chanId, msgId] = interaction.customId.split(':');
             const pubChannel = await interaction.guild.channels.fetch(chanId);
             const pubMsg = await pubChannel.messages.fetch(msgId);
-            const queueLines = pubMsg.embeds[0].description.split('\n').filter(l => l.includes('<@'));
+            
+            const pubEmbed = pubMsg.embeds[0];
+            let queueLines = pubEmbed.description.split('\n').filter(l => l.includes('<@'));
             
             if (queueLines.length === 0) return interaction.reply({ content: 'Queue is empty!', ephemeral: true });
-            
-            const firstUser = queueLines[0].match(/<@\d+>/)[0];
-            return interaction.reply({ content: `🎟️ Ticket created for ${firstUser}!`, ephemeral: true });
-          }
 
-          // 3. Admin Remove Button (Updates Public Queue + Updates Admin Panel View)
-          if (interaction.customId.startsWith('admin_remove')) {
-            const [_, chanId, msgId] = interaction.customId.split(':');
-            const pubChannel = await interaction.guild.channels.fetch(chanId);
-            const pubMsg = await pubChannel.messages.fetch(msgId);
-            
-            const embed = pubMsg.embeds[0];
-            let lines = embed.description.split('\n');
-            let queueLines = lines.slice(4).filter(l => l.includes('<@'));
-            
-            if (queueLines.length === 0) return interaction.reply({ content: 'Queue is empty!', ephemeral: true });
-            
-            // Remove the first person
-            const removedUser = queueLines.shift(); 
-            const newQueueText = queueLines.length > 0 ? queueLines.join('\n') : '(No one is in the queue yet.)';
-            
-            // Update Public Message
-            const newPubDesc = `The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n${newQueueText}`;
-            await pubMsg.edit({ embeds: [EmbedBuilder.from(embed).setDescription(newPubDesc)] });
-            
-            // Update Admin Panel Embed to show current list
+            let statusMessage = "";
+
+            // If action is Remove
+            if (action === 'admin_remove') {
+                const removedUser = queueLines.shift();
+                const newQueueText = queueLines.length > 0 ? queueLines.join('\n') : '(No one is in the queue yet.)';
+                
+                // Update Public Message
+                const newPubDesc = `The queue updates live.\nUse the buttons below to join or leave the queue.\n\n**Queue:**\n${newQueueText}`;
+                await pubMsg.edit({ embeds: [EmbedBuilder.from(pubEmbed).setDescription(newPubDesc)] });
+                statusMessage = `✅ Removed ${removedUser} from queue.`;
+            } 
+            // If action is Ticket
+            else if (action === 'admin_ticket') {
+                statusMessage = `🎟️ Ticket created for ${queueLines[0]}!`;
+            }
+
+            // Update Admin Panel Embed to show current queue list
+            const currentQueueList = queueLines.length > 0 ? queueLines.join('\n') : '(Queue is empty)';
             const adminEmbed = EmbedBuilder.from(interaction.message.embeds[0])
-                .setDescription(`**Current Queue:**\n${newQueueText}`);
+                .setDescription(`Use the buttons below to manage the queue.\n\n**Queue:**\n${currentQueueList}\n\n${statusMessage}`);
             
             await interaction.update({ embeds: [adminEmbed] });
             return;
