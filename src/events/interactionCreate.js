@@ -1,4 +1,4 @@
-import { Events, EmbedBuilder } from 'discord.js';
+import { Events, EmbedBuilder, ChannelType, PermissionsBitField } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { createInteractionTraceContext, runWithTraceContext } from '../utils/traceContext.js';
@@ -59,7 +59,33 @@ export default {
             } 
             // If action is Ticket
             else if (action === 'admin_ticket') {
-                statusMessage = `🎟️ Ticket created for ${queueLines[0]}!`;
+                const userId = queueLines[0].match(/<@!?(\d+)>/)[1];
+                const staffRoleId = '1526310583694262312';
+                const categoryId = '1525924122620854322';
+
+                // Create the private channel
+                const channel = await interaction.guild.channels.create({
+                    name: `ticket-${interaction.guild.members.cache.get(userId)?.user.username || userId}`,
+                    type: ChannelType.GuildText,
+                    parent: categoryId,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild.id, // @everyone
+                            deny: [PermissionsBitField.Flags.ViewChannel],
+                        },
+                        {
+                            id: staffRoleId, // Staff Role
+                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
+                        },
+                        {
+                            id: userId, // The User
+                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
+                        },
+                    ],
+                });
+
+                await channel.send(`Hello ${queueLines[0]}, a tester will be with you shortly!`);
+                statusMessage = `🎟️ Ticket created: ${channel}!`;
             }
 
             // Update Admin Panel Embed to show current queue list
