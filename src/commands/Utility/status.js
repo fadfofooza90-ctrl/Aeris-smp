@@ -8,7 +8,7 @@ export default {
 
     async execute(interaction) {
         // --- CONFIGURATION ---
-        const serverAddress = ''; 
+        const serverAddress = 'aerissmp.dat.airforce'; 
         // ---------------------
 
         await interaction.deferReply();
